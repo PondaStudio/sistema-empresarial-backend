@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd C:/Users/chris/Documents/sistema-empresarial/backend && npm install --silent 2>&1 | tail -5 && ./node_modules/.bin/tsc --noEmit 2>&1\",\"timeout\":120000,\"description\":\"Install dependencie...",
+  "error": "Exit code 2\nsrc/controllers/inventario.ts(99,9): error TS6133: 'invError' is declared but its value is never read.\r\nsrc/routes/comunicacion.ts(5,1): error TS6133: 'auditLog' is declared but its value is never read.\r\nsrc/routes/rrhh.ts(10,18): error TS7016: Could not find a declaration file for module 'papaparse'. 'C:/Users/chris/Documents/sistema-empresarial/backend/node_modules/papaparse/papaparse.js' implicitly has an 'any' type.\r\n  Try `npm i --save-dev @types/papaparse` if it exists or add a...",
+  "timestamp": "2026-03-15T03:44:31.461Z",
+  "retry_count": 1
+}
