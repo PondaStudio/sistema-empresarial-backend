@@ -11,7 +11,7 @@ import {
 const router = Router()
 
 // Sub-funciones del sistema (referencia estática)
-router.get('/subfunciones', requireAuth, listSubfunciones)
+router.get('/subfunciones', listSubfunciones)
 
 // Permisos granulares por usuario
 router.get('/permisos-granulares/:userId',        requireAuth, getUserPermisosGranulares)
