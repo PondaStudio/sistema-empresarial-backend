@@ -13,6 +13,7 @@ export interface AuthRequest extends Request {
     rol_id: number
     rol_nivel: number
     sucursal_id: string | null
+    isMock?: boolean
   }
 }
 
@@ -35,6 +36,7 @@ export async function requireAuth(
       rol_id: 0,
       rol_nivel: isNaN(nivel) ? 99 : nivel,
       sucursal_id: null,
+      isMock: true,
     }
     return next()
   }

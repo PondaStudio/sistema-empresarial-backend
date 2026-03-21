@@ -70,6 +70,9 @@ export function checkPermission(modulo: string, accion: string) {
   return async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.user) return res.status(401).json({ error: 'UNAUTHORIZED' })
 
+    // Mock users (dev) and Creador (nivel 1) bypass all permission checks
+    if (req.user.isMock || req.user.rol_nivel === 1) return next()
+
     const allowed = await hasPermission(req.user.id, req.user.rol_id, modulo, accion)
     if (!allowed) return res.status(403).json({ error: 'FORBIDDEN', modulo, accion })
 
