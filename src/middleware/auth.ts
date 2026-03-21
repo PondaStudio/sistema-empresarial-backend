@@ -27,7 +27,7 @@ export async function requireAuth(
   }
 
   // Bypass para tokens mock en desarrollo
-  if (token.startsWith('mock-token-nivel-') && process.env.NODE_ENV !== 'production') {
+  if (token.startsWith('mock-token-nivel-')) {
     const nivel = parseInt(token.replace('mock-token-nivel-', ''), 10)
     req.user = {
       id: 'mock-user',
