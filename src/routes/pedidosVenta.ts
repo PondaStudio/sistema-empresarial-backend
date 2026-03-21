@@ -10,14 +10,73 @@ import { auditLog } from '../middleware/audit'
 
 const router = Router()
 
-router.get('/',                          requireAuth, checkPermission('pedidos_venta', 'VER'),    listPedidos)
-router.post('/',                         requireAuth, checkPermission('pedidos_venta', 'CREAR'),  auditLog('pedidos_venta', 'CREAR'), crearPedido)
-router.get('/:id',                       requireAuth, checkPermission('pedidos_venta', 'VER'),    getPedido)
-router.patch('/:id/items/:itemId',       requireAuth, checkPermission('pedidos_venta', 'EDITAR'), auditLog('pedidos_venta', 'EDITAR'), confirmarItem)
-router.post('/:id/imprimir',             requireAuth, checkPermission('pedidos_venta', 'IMPRIMIR'), auditLog('pedidos_venta', 'IMPRIMIR'), imprimirNota)
-router.patch('/:id/surtir',             requireAuth, checkPermission('pedidos_venta', 'EDITAR'), auditLog('pedidos_venta', 'EDITAR'), confirmarSurtido)
-router.patch('/:id/verificar-vendedora', requireAuth, checkPermission('pedidos_venta', 'EDITAR'), verificarVendedora)
-router.patch('/:id/checador',            requireAuth, checkPermission('pedidos_venta', 'APROBAR'), auditLog('pedidos_venta', 'APROBAR'), escanearChecador)
-router.patch('/:id/puerta',             requireAuth, checkPermission('pedidos_venta', 'APROBAR'), auditLog('pedidos_venta', 'APROBAR'), cerrarPuerta)
+// Flujo completo de pedido de venta:
+// pendiente_almacen → en_revision → confirmado → impreso → surtido → verificado_vendedora → en_checador → cerrado
+
+router.get('/',
+  requireAuth,
+  checkPermission('pedidos_venta', 'VER'),
+  listPedidos
+)
+
+router.post('/',
+  requireAuth,
+  checkPermission('pedidos_venta', 'CREAR'),
+  auditLog('pedidos_venta', 'CREAR'),
+  crearPedido
+)
+
+router.get('/:id',
+  requireAuth,
+  checkPermission('pedidos_venta', 'VER'),
+  getPedido
+)
+
+// Almacenista confirma/rechaza/sustituye cada item
+router.patch('/:id/items/:itemId',
+  requireAuth,
+  checkPermission('pedidos_venta', 'EDITAR'),
+  auditLog('pedidos_venta', 'EDITAR'),
+  confirmarItem
+)
+
+// Vendedora imprime la nota (solo si todos los items están confirmados)
+router.patch('/:id/imprimir',
+  requireAuth,
+  checkPermission('pedidos_venta', 'IMPRIMIR'),
+  auditLog('pedidos_venta', 'IMPRIMIR'),
+  imprimirNota
+)
+
+// Almacenista confirma surtido completo (descuenta inventario)
+router.patch('/:id/surtir',
+  requireAuth,
+  checkPermission('pedidos_venta', 'EDITAR'),
+  auditLog('pedidos_venta', 'EDITAR'),
+  confirmarSurtido
+)
+
+// Vendedora verifica que recibió todo correctamente
+router.patch('/:id/verificar',
+  requireAuth,
+  checkPermission('pedidos_venta', 'EDITAR'),
+  verificarVendedora
+)
+
+// Checador escanea en puerta
+router.patch('/:id/checador',
+  requireAuth,
+  checkPermission('pedidos_venta', 'APROBAR'),
+  auditLog('pedidos_venta', 'APROBAR'),
+  escanearChecador
+)
+
+// Cierre definitivo del pedido
+router.patch('/:id/cerrar',
+  requireAuth,
+  checkPermission('pedidos_venta', 'APROBAR'),
+  auditLog('pedidos_venta', 'APROBAR'),
+  cerrarPuerta
+)
 
 export default router
