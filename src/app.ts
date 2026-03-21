@@ -30,6 +30,10 @@ app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'backend' })
 })
 
+// Todas las rutas bajo /api
+import { Router } from 'express'
+const api = Router()
+
 // Wave 1 routes
 import authRoutes       from './routes/auth'
 import usersRoutes      from './routes/users'
@@ -37,36 +41,36 @@ import sucursalesRoutes from './routes/sucursales'
 import permisosRoutes   from './routes/permisos'
 import rolesRoutes      from './routes/roles'
 
-app.use('/auth',        authRoutes)
-app.use('/users',       usersRoutes)
-app.use('/sucursales',  sucursalesRoutes)
-app.use('/permisos',    permisosRoutes)
-app.use('/roles',       rolesRoutes)
+api.use('/auth',        authRoutes)
+api.use('/users',       usersRoutes)
+api.use('/sucursales',  sucursalesRoutes)
+api.use('/permisos',    permisosRoutes)
+api.use('/roles',       rolesRoutes)
 
 // Wave 2 routes
 import productosRoutes   from './routes/productos'
 import inventarioRoutes  from './routes/inventario'
 import proveedoresRoutes from './routes/proveedores'
 
-app.use('/productos',   productosRoutes)
-app.use('/inventario',  inventarioRoutes)
-app.use('/proveedores', proveedoresRoutes)
+api.use('/productos',   productosRoutes)
+api.use('/inventario',  inventarioRoutes)
+api.use('/proveedores', proveedoresRoutes)
 
 // Wave 3 routes
 import pedidosVentaRoutes from './routes/pedidosVenta'
 import clientesRoutes     from './routes/clientes'
 
-app.use('/pedidos/venta', pedidosVentaRoutes)
-app.use('/clientes',      clientesRoutes)
+api.use('/pedidos/venta', pedidosVentaRoutes)
+api.use('/clientes',      clientesRoutes)
 
 // Wave 4 routes
 import comunicacionRoutes from './routes/comunicacion'
 import tareasRoutes       from './routes/tareas'
 import rrhhRoutes         from './routes/rrhh'
 
-app.use('/comunicacion', comunicacionRoutes)
-app.use('/tareas',       tareasRoutes)
-app.use('/rrhh',         rrhhRoutes)
+api.use('/comunicacion', comunicacionRoutes)
+api.use('/tareas',       tareasRoutes)
+api.use('/rrhh',         rrhhRoutes)
 
 // Wave 5 routes
 import dashboardRoutes      from './routes/dashboard'
@@ -74,22 +78,24 @@ import avisosRoutes         from './routes/avisos'
 import notificacionesRoutes from './routes/notificaciones'
 import bitacoraRoutes       from './routes/bitacora'
 
-app.use('/dashboard',      dashboardRoutes)
-app.use('/avisos',         avisosRoutes)
-app.use('/notificaciones', notificacionesRoutes)
-app.use('/bitacora',       bitacoraRoutes)
+api.use('/dashboard',      dashboardRoutes)
+api.use('/avisos',         avisosRoutes)
+api.use('/notificaciones', notificacionesRoutes)
+api.use('/bitacora',       bitacoraRoutes)
 
 // Wave 5b routes
 import capacitacionesRoutes from './routes/capacitaciones'
 import evaluacionesRoutes   from './routes/evaluaciones'
 import formatosRoutes       from './routes/formatos'
 
-app.use('/capacitaciones', capacitacionesRoutes)
-app.use('/evaluaciones',   evaluacionesRoutes)
-app.use('/formatos',       formatosRoutes)
+api.use('/capacitaciones', capacitacionesRoutes)
+api.use('/evaluaciones',   evaluacionesRoutes)
+api.use('/formatos',       formatosRoutes)
 
 // Wave 6 routes — permisos granulares
 import permisosGranularesRoutes from './routes/permisosGranulares'
-app.use('/', permisosGranularesRoutes)
+api.use('/', permisosGranularesRoutes)
+
+app.use('/api', api)
 
 export default app

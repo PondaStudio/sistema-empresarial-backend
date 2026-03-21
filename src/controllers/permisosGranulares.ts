@@ -8,7 +8,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_KEY!
 )
 
-// GET /subfunciones
+// GET /api/subfunciones — devuelve registros agrupados por módulo
 export async function listSubfunciones(_req: AuthRequest, res: Response) {
   const { data, error } = await supabase
     .from('subfunciones')
@@ -17,7 +17,14 @@ export async function listSubfunciones(_req: AuthRequest, res: Response) {
     .order('orden')
 
   if (error) return res.status(500).json({ error: 'DB_ERROR', detail: error.message })
-  return res.json(data)
+
+  const grouped: Record<string, typeof data> = {}
+  for (const row of data ?? []) {
+    if (!grouped[row.modulo]) grouped[row.modulo] = []
+    grouped[row.modulo]!.push(row)
+  }
+
+  return res.json(grouped)
 }
 
 // GET /permisos-granulares/:userId
