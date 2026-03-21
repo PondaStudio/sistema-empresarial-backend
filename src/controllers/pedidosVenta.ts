@@ -44,7 +44,7 @@ export async function crearPedido(req: AuthRequest, res: Response) {
         folio,
         sucursal_id:  req.user!.sucursal_id,
         vendedora_id: req.user!.id,
-        estado:       'pendiente_almacen',
+        estado:       'pendiente_confirmacion',
       })
       .select()
       .single()
@@ -81,10 +81,10 @@ export async function listPedidos(req: AuthRequest, res: Response) {
       .order('created_at', { ascending: false })
       .limit(100)
 
-    // Vendedora (nivel >= 8) solo ve sus propios pedidos
-    if (nivel >= 8) {
+    // Vendedora (nivel >= 10) solo ve sus propios pedidos
+    if (nivel >= 10) {
       query = query.eq('vendedora_id', req.user!.id)
-    // Encargado/almacenista (niveles 4-7) solo ve su sucursal
+    // Almacenista/encargado (niveles 4-9) ve todos los pedidos de su sucursal
     } else if (nivel >= 4 && req.user!.sucursal_id) {
       query = query.eq('sucursal_id', req.user!.sucursal_id)
     }
@@ -125,8 +125,8 @@ export async function getPedido(req: AuthRequest, res: Response) {
 
     if (error || !data) return res.status(404).json({ error: 'NOT_FOUND' })
 
-    // Vendedora solo puede ver sus propios pedidos
-    if (req.user!.rol_nivel >= 8 && (data as any).vendedora_id !== req.user!.id) {
+    // Vendedora (nivel >= 10) solo puede ver sus propios pedidos
+    if (req.user!.rol_nivel >= 10 && (data as any).vendedora_id !== req.user!.id) {
       return res.status(403).json({ error: 'FORBIDDEN' })
     }
 
@@ -154,7 +154,7 @@ export async function confirmarItem(req: AuthRequest, res: Response) {
       .eq('id', pedidoId)
       .single()
 
-    if (!pedido || !['pendiente_almacen', 'en_revision'].includes(pedido.estado)) {
+    if (!pedido || !['pendiente_confirmacion', 'en_revision'].includes(pedido.estado)) {
       return res.status(400).json({ error: 'INVALID_STATE', message: 'El pedido no está disponible para revisión' })
     }
 
@@ -209,8 +209,8 @@ export async function imprimirNota(req: AuthRequest, res: Response) {
 
     if (!pedido) return res.status(404).json({ error: 'NOT_FOUND' })
 
-    // Solo la vendedora dueña o superiores pueden imprimir
-    if (req.user!.rol_nivel >= 8 && pedido.vendedora_id !== req.user!.id) {
+    // Solo la vendedora dueña (nivel >= 10) o superiores pueden imprimir
+    if (req.user!.rol_nivel >= 10 && pedido.vendedora_id !== req.user!.id) {
       return res.status(403).json({ error: 'FORBIDDEN' })
     }
 
@@ -303,7 +303,7 @@ export async function verificarVendedora(req: AuthRequest, res: Response) {
       return res.status(400).json({ error: 'INVALID_STATE', message: 'El pedido debe estar surtido' })
     }
 
-    if (req.user!.rol_nivel >= 8 && pedido.vendedora_id !== req.user!.id) {
+    if (req.user!.rol_nivel >= 10 && pedido.vendedora_id !== req.user!.id) {
       return res.status(403).json({ error: 'FORBIDDEN' })
     }
 

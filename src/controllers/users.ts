@@ -27,6 +27,16 @@ const meSchema = z.object({
 
 export async function updateMe(req: AuthRequest, res: Response) {
   try {
+    const userId = req.user?.id
+    console.error('[updateMe] req.user.id =', userId, '| isMock =', (req.user as any)?.isMock)
+
+    if (!userId || userId === 'mock-user') {
+      return res.status(400).json({
+        error: 'MOCK_USER',
+        message: 'El usuario mock no tiene un ID real en base de datos. Inicia sesión con cuenta real para guardar cambios.',
+      })
+    }
+
     const parsed = meSchema.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
@@ -34,12 +44,15 @@ export async function updateMe(req: AuthRequest, res: Response) {
       return res.status(400).json({ error: 'NO_FIELDS', message: 'Envía al menos un campo para actualizar' })
     }
 
-    const { error } = await supabase.from('usuarios').update(parsed.data).eq('id', req.user!.id)
-    if (error) return res.status(500).json({ error: 'UPDATE_FAILED' })
+    const { error, data } = await supabase.from('usuarios').update(parsed.data).eq('id', userId).select('id').single()
+    if (error || !data) {
+      console.error('[updateMe] supabase error:', error)
+      return res.status(500).json({ error: 'UPDATE_FAILED', detail: error?.message ?? 'Registro no encontrado' })
+    }
 
     return res.json({ message: 'Perfil actualizado' })
   } catch (err) {
-    console.error(err)
+    console.error('[updateMe] exception:', err)
     return res.status(500).json({ error: 'Error interno' })
   }
 }
