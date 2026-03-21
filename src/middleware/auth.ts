@@ -21,6 +21,19 @@ export async function requireAuth(
   res: Response,
   next: NextFunction
 ) {
+  // Permitir acceso mock en desarrollo
+  if (req.headers['x-mock-user'] === 'true' && process.env.NODE_ENV !== 'production') {
+    const nivel = parseInt((req.headers['x-mock-level'] as string) ?? '99', 10)
+    req.user = {
+      id: 'mock-user',
+      email: 'mock@dev.local',
+      rol_id: 0,
+      rol_nivel: nivel,
+      sucursal_id: null,
+    }
+    return next()
+  }
+
   const token = req.headers.authorization?.replace('Bearer ', '')
   if (!token) {
     return res.status(401).json({ error: 'TOKEN_MISSING' })
