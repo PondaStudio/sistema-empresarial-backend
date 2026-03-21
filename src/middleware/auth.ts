@@ -37,12 +37,11 @@ export async function requireAuth(
       4:  { id: '6b1422ab-5273-4b43-b78a-fd389f59cf18', email: 'familiar@empresa.com' },
       5:  { id: '4cd57c7f-33b4-4a4d-b219-4ac967f184a1', email: 'admg2@empresa.com' },
       6:  { id: '8a079946-b8c8-41e7-a52e-50efe21e9e71', email: 'encargado@empresa.com' },
-      7:  { id: '957aca8e-8cff-41a1-bf63-3dfc95755a8e', email: 'bodega@empresa.com' },
-      8:  { id: '343067c0-5e23-4e22-bce4-ff6f487375e3', email: 'admg1@empresa.com' },
-      9:  { id: 'bb634c06-9920-4ff8-8cc6-e0cd22757af8', email: 'cajera@empresa.com' },
-      10: { id: 'd99b43d7-134f-4878-891f-34f539626758', email: 'almacenista@empresa.com' },
-      11: { id: '45a6c286-7ba6-4425-91d9-5e8fd108db9e', email: 'vendedora@empresa.com' },
-      12: { id: '3d330838-ba39-4fed-97a6-d9521327ea6a', email: 'promotor@empresa.com' },
+      7:  { id: '343067c0-5e23-4e22-bce4-ff6f487375e3', email: 'admg1@empresa.com' },
+      8:  { id: 'bb634c06-9920-4ff8-8cc6-e0cd22757af8', email: 'cajera@empresa.com' },
+      9:  { id: 'd99b43d7-134f-4878-891f-34f539626758', email: 'almacenista@empresa.com' },
+      10: { id: '45a6c286-7ba6-4425-91d9-5e8fd108db9e', email: 'vendedora@empresa.com' },
+      11: { id: '3d330838-ba39-4fed-97a6-d9521327ea6a', email: 'promotor@empresa.com' },
     }
 
     const mapped = MOCK_USER_IDS[isNaN(nivel) ? -1 : nivel]
