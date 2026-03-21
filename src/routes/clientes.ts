@@ -11,18 +11,24 @@ const router = Router()
 
 router.get('/', requireAuth, checkPermission('clientes', 'VER'), async (req: AuthRequest, res: Response) => {
   try {
-    const { q } = req.query as Record<string, string>
+    const { search } = req.query as Record<string, string>
     let query = supabase
       .from('clientes_frecuentes')
-      .select('*, domicilios_cliente(*), datos_fiscales_cliente(*)')
+      .select('id, nombre, email, rfc, telefono')
       .order('nombre')
-    if (q) query = query.ilike('nombre', `%${q}%`)
+      .limit(50)
+
+    if (search) {
+      const term = search.trim()
+      query = query.or(`nombre.ilike.%${term}%,email.ilike.%${term}%,rfc.ilike.%${term}%`)
+    }
+
     const { data, error } = await query
     if (error) return res.status(500).json({ error: 'DB_ERROR' })
-    return res.json(data)
+    return res.json(data ?? [])
   } catch (err) {
     console.error(err)
-    return res.status(500).json({ error: 'Error interno' })
+    return res.json([])
   }
 })
 

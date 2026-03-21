@@ -5,20 +5,26 @@ import { AuthRequest } from '../middleware/auth'
 
 export async function listProductos(req: AuthRequest, res: Response) {
   try {
-    const { q, categoria_id, activo = 'true' } = req.query as Record<string, string>
+    const { codigo, search, q, categoria_id, activo = 'true' } = req.query as Record<string, string>
 
     let query = supabase
       .from('productos')
-      .select('id, codigo, nombre, descripcion, foto_url, activo, categoria_id, categorias(nombre)')
+      .select('id, codigo, nombre, descripcion, precio, cantidad, foto_url, activo, categoria_id, categorias(nombre)')
       .eq('activo', activo === 'true')
       .order('nombre')
 
-    if (q) query = query.ilike('nombre', `%${q}%`)
+    if (codigo) {
+      // Búsqueda por código de barras: exacto primero, si no, parcial
+      query = query.ilike('codigo', `%${codigo}%`)
+    } else if (search || q) {
+      query = query.ilike('nombre', `%${search || q}%`)
+    }
+
     if (categoria_id) query = query.eq('categoria_id', categoria_id)
 
     const { data, error } = await query
     if (error) return res.status(500).json({ error: 'DB_ERROR' })
-    return res.json(data)
+    return res.json(data ?? [])
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })

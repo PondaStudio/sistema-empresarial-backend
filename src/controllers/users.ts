@@ -3,6 +3,47 @@ import { supabase } from '../lib/supabase'
 import { z } from 'zod'
 import { AuthRequest } from '../middleware/auth'
 
+export async function getMe(req: AuthRequest, res: Response) {
+  try {
+    const { data, error } = await supabase
+      .from('usuarios')
+      .select('id, nombre, email, numero_agente, foto_url, estado_presencia, activo, rol_id, sucursal_id, roles(id, nombre, nivel), sucursales(nombre)')
+      .eq('id', req.user!.id)
+      .single()
+
+    if (error || !data) return res.status(404).json({ error: 'USER_NOT_FOUND' })
+    return res.json(data)
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
+}
+
+const meSchema = z.object({
+  numero_agente:    z.string().max(20).optional(),
+  foto_url:         z.string().url().optional(),
+  estado_presencia: z.enum(['disponible', 'ocupado', 'comiendo', 'no_disponible', 'ausente']).optional(),
+})
+
+export async function updateMe(req: AuthRequest, res: Response) {
+  try {
+    const parsed = meSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
+
+    if (Object.keys(parsed.data).length === 0) {
+      return res.status(400).json({ error: 'NO_FIELDS', message: 'Envía al menos un campo para actualizar' })
+    }
+
+    const { error } = await supabase.from('usuarios').update(parsed.data).eq('id', req.user!.id)
+    if (error) return res.status(500).json({ error: 'UPDATE_FAILED' })
+
+    return res.json({ message: 'Perfil actualizado' })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
+}
+
 export async function listUsers(req: AuthRequest, res: Response) {
   try {
     let query = supabase
