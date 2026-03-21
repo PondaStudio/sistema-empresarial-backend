@@ -22,14 +22,18 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
 
 // GET conteo sin leer
 router.get('/unread-count', requireAuth, async (req: AuthRequest, res: Response) => {
-  const { count, error } = await supabase
-    .from('notificaciones')
-    .select('id', { count: 'exact', head: true })
-    .eq('usuario_id', req.user!.id)
-    .eq('leida', false)
+  try {
+    const { count, error } = await supabase
+      .from('notificaciones')
+      .select('id', { count: 'exact', head: true })
+      .eq('usuario_id', req.user!.id)
+      .eq('leida', false)
 
-  if (error) return res.status(500).json({ error: 'DB_ERROR' })
-  return res.json({ count: count ?? 0 })
+    if (error) return res.json({ count: 0 })
+    return res.json({ count: count ?? 0 })
+  } catch {
+    return res.json({ count: 0 })
+  }
 })
 
 // PATCH marcar como leída

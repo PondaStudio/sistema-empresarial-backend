@@ -29,21 +29,27 @@ export async function listInventario(req: AuthRequest, res: Response) {
 }
 
 export async function getAlertas(req: AuthRequest, res: Response) {
-  const { sucursal_id } = req.query as Record<string, string>
-  const targetSucursal = (req.user!.rol_nivel >= 5 && req.user!.sucursal_id)
-    ? req.user!.sucursal_id
-    : sucursal_id
+  try {
+    const { sucursal_id } = req.query as Record<string, string>
+    const targetSucursal = (req.user!.rol_nivel >= 5 && req.user!.sucursal_id)
+      ? req.user!.sucursal_id
+      : sucursal_id
 
-  let query = supabase
-    .from('inventario')
-    .select('id, cantidad, stock_minimo, producto_id, sucursal_id, productos(codigo, nombre), sucursales(nombre)')
-    .filter('cantidad', 'lte', 'stock_minimo')
+    let query = supabase
+      .from('inventario')
+      .select('id, cantidad, stock_minimo, producto_id, sucursal_id, productos(codigo, nombre), sucursales(nombre)')
 
-  if (targetSucursal) query = query.eq('sucursal_id', targetSucursal)
+    if (targetSucursal) query = query.eq('sucursal_id', targetSucursal)
 
-  const { data, error } = await query
-  if (error) return res.status(500).json({ error: 'DB_ERROR' })
-  return res.json(data)
+    const { data, error } = await query
+    if (error) return res.json([])
+
+    // Filter client-side: records where cantidad <= stock_minimo
+    const alertas = (data ?? []).filter((item: any) => item.cantidad <= item.stock_minimo)
+    return res.json(alertas)
+  } catch {
+    return res.json([])
+  }
 }
 
 const ajusteSchema = z.object({
