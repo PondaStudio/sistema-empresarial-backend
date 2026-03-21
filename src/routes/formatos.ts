@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import { requireAuth } from '../middleware/auth'
 import { checkPermission } from '../middleware/permissions'
 import { AuthRequest } from '../middleware/auth'
@@ -7,16 +7,20 @@ import { Response } from 'express'
 import multer from 'multer'
 
 const router = Router()
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } })
 
 router.get('/', requireAuth, checkPermission('formatos', 'VER'), async (req: AuthRequest, res: Response) => {
-  const { categoria } = req.query as Record<string, string>
-  let query = supabase.from('formatos').select('*, subido_por:usuarios!subido_por(nombre)').eq('activo', true).order('nombre')
-  if (categoria) query = query.eq('categoria', categoria)
-  const { data, error } = await query
-  if (error) return res.status(500).json({ error: 'DB_ERROR' })
-  return res.json(data)
+  try {
+    const { categoria } = req.query as Record<string, string>
+    let query = supabase.from('formatos').select('*, subido_por:usuarios!subido_por(nombre)').eq('activo', true).order('nombre')
+    if (categoria) query = query.eq('categoria', categoria)
+    const { data, error } = await query
+    if (error) return res.status(500).json({ error: 'DB_ERROR' })
+    return res.json(data)
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
 })
 
 router.post('/', requireAuth, checkPermission('formatos', 'CREAR'),
@@ -46,9 +50,14 @@ router.post('/', requireAuth, checkPermission('formatos', 'CREAR'),
 )
 
 router.delete('/:id', requireAuth, checkPermission('formatos', 'ELIMINAR'), async (_req: AuthRequest, res: Response) => {
-  const { error } = await supabase.from('formatos').update({ activo: false }).eq('id', _req.params.id)
-  if (error) return res.status(500).json({ error: 'DELETE_FAILED' })
-  return res.json({ message: 'Formato eliminado' })
+  try {
+    const { error } = await supabase.from('formatos').update({ activo: false }).eq('id', _req.params.id)
+    if (error) return res.status(500).json({ error: 'DELETE_FAILED' })
+    return res.json({ message: 'Formato eliminado' })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
 })
 
 export default router

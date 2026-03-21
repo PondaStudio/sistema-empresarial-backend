@@ -1,0 +1,71 @@
+{
+  "updatedAt": "2026-03-21T20:29:25.110Z",
+  "missions": [
+    {
+      "id": "session:7fb6c6c7-b181-4956-9d0f-246cf27b7ff7:none",
+      "source": "session",
+      "name": "none",
+      "objective": "Session mission",
+      "createdAt": "2026-03-21T17:41:22.182Z",
+      "updatedAt": "2026-03-21T20:29:25.110Z",
+      "status": "running",
+      "workerCount": 2,
+      "taskCounts": {
+        "total": 2,
+        "pending": 0,
+        "blocked": 0,
+        "inProgress": 1,
+        "completed": 1,
+        "failed": 0
+      },
+      "agents": [
+        {
+          "name": "explore:a9457a6",
+          "role": "explore",
+          "ownership": "a9457a6a63ea32f25",
+          "status": "done",
+          "currentStep": null,
+          "latestUpdate": "completed",
+          "completedSummary": null,
+          "updatedAt": "2026-03-21T20:26:51.875Z"
+        },
+        {
+          "name": "executor:a038b5a",
+          "role": "executor",
+          "ownership": "a038b5a4a0a0f325f",
+          "status": "running",
+          "currentStep": null,
+          "latestUpdate": null,
+          "completedSummary": null,
+          "updatedAt": "2026-03-21T20:29:25.110Z"
+        }
+      ],
+      "timeline": [
+        {
+          "id": "session-start:a9457a6a63ea32f25:2026-03-21T17:41:22.182Z",
+          "at": "2026-03-21T17:41:22.182Z",
+          "kind": "update",
+          "agent": "explore:a9457a6",
+          "detail": "started explore:a9457a6",
+          "sourceKey": "session-start:a9457a6a63ea32f25"
+        },
+        {
+          "id": "session-stop:a9457a6a63ea32f25:2026-03-21T20:26:51.875Z",
+          "at": "2026-03-21T20:26:51.875Z",
+          "kind": "completion",
+          "agent": "explore:a9457a6",
+          "detail": "completed",
+          "sourceKey": "session-stop:a9457a6a63ea32f25"
+        },
+        {
+          "id": "session-start:a038b5a4a0a0f325f:2026-03-21T20:29:25.110Z",
+          "at": "2026-03-21T20:29:25.110Z",
+          "kind": "update",
+          "agent": "executor:a038b5a",
+          "detail": "started executor:a038b5a",
+          "sourceKey": "session-start:a038b5a4a0a0f325f"
+        }
+      ]
+    }
+  ]
+}

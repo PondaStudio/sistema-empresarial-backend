@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -rn \"^[[:space:]]*//\" /c/Users/chris/Documents/sistema-empresarial-backend/src --include=\"*.ts\")",
+      "Bash(grep -v \"^[[:space:]]*///\")",
+      "Bash(done)",
+      "Bash(grep:*)",
+      "Bash(for file:*)",
+      "Bash(do)",
+      "Bash(if ! grep -q \"^import.*from.*controllers\" \"$file\")",
+      "Bash(then)",
+      "Bash(basename \"$file\")",
+      "Bash(do echo:*)",
+      "Bash(npm run:*)"
+    ]
+  }
+}

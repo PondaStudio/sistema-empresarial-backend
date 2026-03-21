@@ -1,31 +1,35 @@
 import { Response } from 'express'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import { z } from 'zod'
 import { AuthRequest } from '../middleware/auth'
 import axios from 'axios'
 import multer from 'multer'
 
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 export const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } })
 
 export async function listInventario(req: AuthRequest, res: Response) {
-  const { sucursal_id } = req.query as Record<string, string>
+  try {
+    const { sucursal_id } = req.query as Record<string, string>
 
-  // Encargado de sucursal only sees their own branch
-  const targetSucursal = (req.user!.rol_nivel >= 5 && req.user!.sucursal_id)
-    ? req.user!.sucursal_id
-    : sucursal_id
+    // Encargado de sucursal only sees their own branch
+    const targetSucursal = (req.user!.rol_nivel >= 5 && req.user!.sucursal_id)
+      ? req.user!.sucursal_id
+      : sucursal_id
 
-  let query = supabase
-    .from('inventario')
-    .select('id, cantidad, stock_minimo, updated_at, producto_id, sucursal_id, productos(codigo, nombre, foto_url, categorias(nombre)), sucursales(nombre)')
-    .order('cantidad')
+    let query = supabase
+      .from('inventario')
+      .select('id, cantidad, stock_minimo, updated_at, producto_id, sucursal_id, productos(codigo, nombre, foto_url, categorias(nombre)), sucursales(nombre)')
+      .order('cantidad')
 
-  if (targetSucursal) query = query.eq('sucursal_id', targetSucursal)
+    if (targetSucursal) query = query.eq('sucursal_id', targetSucursal)
 
-  const { data, error } = await query
-  if (error) return res.status(500).json({ error: 'DB_ERROR' })
-  return res.json(data)
+    const { data, error } = await query
+    if (error) return res.status(500).json({ error: 'DB_ERROR' })
+    return res.json(data)
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
 }
 
 export async function getAlertas(req: AuthRequest, res: Response) {
@@ -59,33 +63,38 @@ const ajusteSchema = z.object({
 })
 
 export async function ajustarInventario(req: AuthRequest, res: Response) {
-  const { id } = req.params
-  const parsed = ajusteSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
+  try {
+    const { id } = req.params
+    const parsed = ajusteSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
-  const { data: inv } = await supabase.from('inventario').select('*').eq('id', id).single()
-  if (!inv) return res.status(404).json({ error: 'NOT_FOUND' })
+    const { data: inv } = await supabase.from('inventario').select('*').eq('id', id).single()
+    if (!inv) return res.status(404).json({ error: 'NOT_FOUND' })
 
-  const update: Record<string, any> = {}
-  if (parsed.data.cantidad !== undefined) update.cantidad = parsed.data.cantidad
-  if (parsed.data.stock_minimo !== undefined) update.stock_minimo = parsed.data.stock_minimo
+    const update: Record<string, any> = {}
+    if (parsed.data.cantidad !== undefined) update.cantidad = parsed.data.cantidad
+    if (parsed.data.stock_minimo !== undefined) update.stock_minimo = parsed.data.stock_minimo
 
-  const { error } = await supabase.from('inventario').update(update).eq('id', id)
-  if (error) return res.status(500).json({ error: 'UPDATE_FAILED' })
+    const { error } = await supabase.from('inventario').update(update).eq('id', id)
+    if (error) return res.status(500).json({ error: 'UPDATE_FAILED' })
 
-  // Log movement
-  if (parsed.data.cantidad !== undefined) {
-    await supabase.from('movimientos_inventario').insert({
-      producto_id: inv.producto_id,
-      sucursal_id: inv.sucursal_id,
-      tipo: 'ajuste',
-      cantidad: parsed.data.cantidad - inv.cantidad,
-      notas: parsed.data.notas,
-      usuario_id: req.user!.id,
-    })
+    // Log movement
+    if (parsed.data.cantidad !== undefined) {
+      await supabase.from('movimientos_inventario').insert({
+        producto_id: inv.producto_id,
+        sucursal_id: inv.sucursal_id,
+        tipo: 'ajuste',
+        cantidad: parsed.data.cantidad - inv.cantidad,
+        notas: parsed.data.notas,
+        usuario_id: req.user!.id,
+      })
+    }
+
+    return res.json({ message: 'Inventario actualizado' })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
   }
-
-  return res.json({ message: 'Inventario actualizado' })
 }
 
 const mermaSchema = z.object({
@@ -96,27 +105,32 @@ const mermaSchema = z.object({
 })
 
 export async function registrarMerma(req: AuthRequest, res: Response) {
-  const parsed = mermaSchema.safeParse(req.body)
-  if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
+  try {
+    const parsed = mermaSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
-  const { producto_id, sucursal_id, cantidad, motivo } = parsed.data
+    const { producto_id, sucursal_id, cantidad, motivo } = parsed.data
 
-  // Decrease inventory
-  const { error: _invError } = await supabase.rpc('decrement_inventario', {
-    p_producto_id: producto_id, p_sucursal_id: sucursal_id, p_cantidad: cantidad
-  })
+    // Decrease inventory
+    const { error: _invError } = await supabase.rpc('decrement_inventario', {
+      p_producto_id: producto_id, p_sucursal_id: sucursal_id, p_cantidad: cantidad
+    })
 
-  const { error } = await supabase.from('mermas').insert({
-    ...parsed.data, registrado_por: req.user!.id
-  })
-  if (error) return res.status(500).json({ error: 'CREATE_FAILED' })
+    const { error } = await supabase.from('mermas').insert({
+      ...parsed.data, registrado_por: req.user!.id
+    })
+    if (error) return res.status(500).json({ error: 'CREATE_FAILED' })
 
-  await supabase.from('movimientos_inventario').insert({
-    producto_id, sucursal_id, tipo: 'merma', cantidad: -cantidad,
-    notas: motivo, usuario_id: req.user!.id,
-  })
+    await supabase.from('movimientos_inventario').insert({
+      producto_id, sucursal_id, tipo: 'merma', cantidad: -cantidad,
+      notas: motivo, usuario_id: req.user!.id,
+    })
 
-  return res.status(201).json({ message: 'Merma registrada' })
+    return res.status(201).json({ message: 'Merma registrada' })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
 }
 
 // CEDIS daily import — parses Excel/CSV and updates inventory
@@ -141,14 +155,19 @@ export async function importCedis(req: AuthRequest, res: Response) {
 }
 
 export async function getCedisStatus(_req: AuthRequest, res: Response) {
-  // Returns the last CEDIS import movement
-  const { data, error } = await supabase
-    .from('movimientos_inventario')
-    .select('created_at, notas, sucursal_id, sucursales(nombre)')
-    .eq('tipo', 'cedis_import')
-    .order('created_at', { ascending: false })
-    .limit(10)
+  try {
+    // Returns the last CEDIS import movement
+    const { data, error } = await supabase
+      .from('movimientos_inventario')
+      .select('created_at, notas, sucursal_id, sucursales(nombre)')
+      .eq('tipo', 'cedis_import')
+      .order('created_at', { ascending: false })
+      .limit(10)
 
-  if (error) return res.status(500).json({ error: 'DB_ERROR' })
-  return res.json(data)
+    if (error) return res.status(500).json({ error: 'DB_ERROR' })
+    return res.json(data)
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
 }

@@ -1,11 +1,6 @@
 import { Response, NextFunction } from 'express'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import { AuthRequest } from './auth'
-
-const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
 
 // In-memory permission cache with TTL
 const permCache = new Map<string, { value: boolean; expiresAt: number }>()

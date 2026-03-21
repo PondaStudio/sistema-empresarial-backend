@@ -1,0 +1,346 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1774104599825,
+  "projectRoot": "C:\\Users\\chris\\Documents\\sistema-empresarial-backend",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "express",
+        "version": "4.18.3",
+        "category": "backend"
+      },
+      {
+        "name": "vitest",
+        "version": "1.3.1",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npm test",
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "tsx watch src/index.ts",
+      "build": "tsc --skipLibCheck",
+      "start": "node dist/index.js",
+      "test": "vitest",
+      "lint": "eslint src --ext ts"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": "ES modules",
+    "testPattern": null,
+    "fileOrganization": "type-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "src"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 12,
+      "lastAccessed": 1774104599434,
+      "keyFiles": [
+        "app.d.ts",
+        "app.d.ts.map",
+        "app.js",
+        "app.js.map",
+        "index.d.ts"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 3,
+      "lastAccessed": 1774104599438,
+      "keyFiles": [
+        "app.ts",
+        "index.ts",
+        "server.ts"
+      ]
+    },
+    "dist\\controllers": {
+      "path": "dist\\controllers",
+      "purpose": "Controllers",
+      "fileCount": 32,
+      "lastAccessed": 1774104599551,
+      "keyFiles": [
+        "auth.d.ts",
+        "auth.d.ts.map",
+        "auth.js"
+      ]
+    },
+    "dist\\middleware": {
+      "path": "dist\\middleware",
+      "purpose": "Middleware",
+      "fileCount": 12,
+      "lastAccessed": 1774104599556,
+      "keyFiles": [
+        "audit.d.ts",
+        "audit.d.ts.map",
+        "audit.js"
+      ]
+    },
+    "src\\controllers": {
+      "path": "src\\controllers",
+      "purpose": "Controllers",
+      "fileCount": 8,
+      "lastAccessed": 1774104599559,
+      "keyFiles": [
+        "auth.ts",
+        "inventario.ts",
+        "pedidosVenta.ts"
+      ]
+    },
+    "src\\middleware": {
+      "path": "src\\middleware",
+      "purpose": "Middleware",
+      "fileCount": 3,
+      "lastAccessed": 1774104599561,
+      "keyFiles": [
+        "audit.ts",
+        "auth.ts",
+        "permissions.ts"
+      ]
+    },
+    "src\\routes": {
+      "path": "src\\routes",
+      "purpose": "Route handlers",
+      "fileCount": 21,
+      "lastAccessed": 1774104599564,
+      "keyFiles": [
+        "auth.ts",
+        "avisos.ts",
+        "bitacora.ts"
+      ]
+    },
+    "src\\services": {
+      "path": "src\\services",
+      "purpose": "Business logic services",
+      "fileCount": 0,
+      "lastAccessed": 1774104599565,
+      "keyFiles": []
+    },
+    "src\\types": {
+      "path": "src\\types",
+      "purpose": "Type definitions",
+      "fileCount": 0,
+      "lastAccessed": 1774104599567,
+      "keyFiles": []
+    },
+    "src\\utils": {
+      "path": "src\\utils",
+      "purpose": "Utility functions",
+      "fileCount": 0,
+      "lastAccessed": 1774104599568,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "src\\middleware\\permissions.ts",
+      "accessCount": 5,
+      "lastAccessed": 1774125047246,
+      "type": "file"
+    },
+    {
+      "path": "src\\controllers\\inventario.ts",
+      "accessCount": 4,
+      "lastAccessed": 1774125088643,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\notificaciones.ts",
+      "accessCount": 4,
+      "lastAccessed": 1774125283477,
+      "type": "file"
+    },
+    {
+      "path": "src\\controllers\\users.ts",
+      "accessCount": 3,
+      "lastAccessed": 1774125179303,
+      "type": "file"
+    },
+    {
+      "path": "src\\middleware\\auth.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125035231,
+      "type": "file"
+    },
+    {
+      "path": "src\\middleware\\audit.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125050584,
+      "type": "file"
+    },
+    {
+      "path": "src\\controllers\\auth.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125067041,
+      "type": "file"
+    },
+    {
+      "path": "src\\controllers\\pedidosVenta.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125123110,
+      "type": "file"
+    },
+    {
+      "path": "src\\controllers\\permisos.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125137626,
+      "type": "file"
+    },
+    {
+      "path": "src\\controllers\\permisosGranulares.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125152074,
+      "type": "file"
+    },
+    {
+      "path": "src\\controllers\\productos.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125160406,
+      "type": "file"
+    },
+    {
+      "path": "src\\controllers\\sucursales.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125169497,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\avisos.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125191269,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\bitacora.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125196430,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\capacitaciones.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125207551,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\clientes.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125221629,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\comunicacion.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125236637,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\dashboard.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125252937,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\evaluaciones.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125267314,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\formatos.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125273631,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\proveedores.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125296717,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\rrhh.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125319743,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\tareas.ts",
+      "accessCount": 2,
+      "lastAccessed": 1774125336917,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\users.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774104664677,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 1,
+      "lastAccessed": 1774112707230,
+      "type": "directory"
+    },
+    {
+      "path": "src\\routes\\inventario.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774112711446,
+      "type": "file"
+    },
+    {
+      "path": "src\\lib\\supabase.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774125025012,
+      "type": "file"
+    },
+    {
+      "path": "src\\routes\\roles.ts",
+      "accessCount": 1,
+      "lastAccessed": 1774125299926,
+      "type": "file"
+    },
+    {
+      "path": "src",
+      "accessCount": 1,
+      "lastAccessed": 1774125344680,
+      "type": "directory"
+    }
+  ],
+  "userDirectives": []
+}

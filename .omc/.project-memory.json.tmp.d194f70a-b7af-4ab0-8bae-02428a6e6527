@@ -1,0 +1,178 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1774104599825,
+  "projectRoot": "C:\\Users\\chris\\Documents\\sistema-empresarial-backend",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      },
+      {
+        "name": "TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "tsconfig.json"
+        ]
+      }
+    ],
+    "frameworks": [
+      {
+        "name": "express",
+        "version": "4.18.3",
+        "category": "backend"
+      },
+      {
+        "name": "vitest",
+        "version": "1.3.1",
+        "category": "testing"
+      }
+    ],
+    "packageManager": "npm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": "npm run build",
+    "testCommand": "npm test",
+    "lintCommand": "npm run lint",
+    "devCommand": "npm run dev",
+    "scripts": {
+      "dev": "tsx watch src/index.ts",
+      "build": "tsc --skipLibCheck",
+      "start": "node dist/index.js",
+      "test": "vitest",
+      "lint": "eslint src --ext ts"
+    }
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": "ES modules",
+    "testPattern": null,
+    "fileOrganization": "type-based"
+  },
+  "structure": {
+    "isMonorepo": false,
+    "workspaces": [],
+    "mainDirectories": [
+      "src"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "dist": {
+      "path": "dist",
+      "purpose": "Distribution/build output",
+      "fileCount": 12,
+      "lastAccessed": 1774104599434,
+      "keyFiles": [
+        "app.d.ts",
+        "app.d.ts.map",
+        "app.js",
+        "app.js.map",
+        "index.d.ts"
+      ]
+    },
+    "src": {
+      "path": "src",
+      "purpose": "Source code",
+      "fileCount": 3,
+      "lastAccessed": 1774104599438,
+      "keyFiles": [
+        "app.ts",
+        "index.ts",
+        "server.ts"
+      ]
+    },
+    "dist\\controllers": {
+      "path": "dist\\controllers",
+      "purpose": "Controllers",
+      "fileCount": 32,
+      "lastAccessed": 1774104599551,
+      "keyFiles": [
+        "auth.d.ts",
+        "auth.d.ts.map",
+        "auth.js"
+      ]
+    },
+    "dist\\middleware": {
+      "path": "dist\\middleware",
+      "purpose": "Middleware",
+      "fileCount": 12,
+      "lastAccessed": 1774104599556,
+      "keyFiles": [
+        "audit.d.ts",
+        "audit.d.ts.map",
+        "audit.js"
+      ]
+    },
+    "src\\controllers": {
+      "path": "src\\controllers",
+      "purpose": "Controllers",
+      "fileCount": 8,
+      "lastAccessed": 1774104599559,
+      "keyFiles": [
+        "auth.ts",
+        "inventario.ts",
+        "pedidosVenta.ts"
+      ]
+    },
+    "src\\middleware": {
+      "path": "src\\middleware",
+      "purpose": "Middleware",
+      "fileCount": 3,
+      "lastAccessed": 1774104599561,
+      "keyFiles": [
+        "audit.ts",
+        "auth.ts",
+        "permissions.ts"
+      ]
+    },
+    "src\\routes": {
+      "path": "src\\routes",
+      "purpose": "Route handlers",
+      "fileCount": 21,
+      "lastAccessed": 1774104599564,
+      "keyFiles": [
+        "auth.ts",
+        "avisos.ts",
+        "bitacora.ts"
+      ]
+    },
+    "src\\services": {
+      "path": "src\\services",
+      "purpose": "Business logic services",
+      "fileCount": 0,
+      "lastAccessed": 1774104599565,
+      "keyFiles": []
+    },
+    "src\\types": {
+      "path": "src\\types",
+      "purpose": "Type definitions",
+      "fileCount": 0,
+      "lastAccessed": 1774104599567,
+      "keyFiles": []
+    },
+    "src\\utils": {
+      "path": "src\\utils",
+      "purpose": "Utility functions",
+      "fileCount": 0,
+      "lastAccessed": 1774104599568,
+      "keyFiles": []
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "",
+      "accessCount": 1,
+      "lastAccessed": 1774104634714,
+      "type": "directory"
+    }
+  ],
+  "userDirectives": []
+}

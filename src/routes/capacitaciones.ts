@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '../lib/supabase'
 import { requireAuth } from '../middleware/auth'
 import { checkPermission } from '../middleware/permissions'
 import { auditLog } from '../middleware/audit'
@@ -9,7 +9,6 @@ import { Response } from 'express'
 import multer from 'multer'
 
 const router = Router()
-const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } })
 
 // GET lista de capacitaciones
@@ -34,32 +33,37 @@ router.get('/', requireAuth, checkPermission('capacitaciones', 'VER'), async (re
 router.post('/', requireAuth, checkPermission('capacitaciones', 'CREAR'), auditLog('capacitaciones', 'CREAR'),
   upload.single('material'),
   async (req: AuthRequest, res: Response) => {
-    const schema = z.object({
-      titulo:      z.string().min(3).max(300),
-      descripcion: z.string().optional(),
-      obligatoria: z.string().optional().transform(v => v === 'true'),
-    })
-    const parsed = schema.safeParse(req.body)
-    if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
+    try {
+      const schema = z.object({
+        titulo:      z.string().min(3).max(300),
+        descripcion: z.string().optional(),
+        obligatoria: z.string().optional().transform(v => v === 'true'),
+      })
+      const parsed = schema.safeParse(req.body)
+      if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
-    let url_material: string | null = null
-    if (req.file) {
-      const path = `capacitaciones/${Date.now()}-${req.file.originalname}`
-      const { error: uploadErr } = await supabase.storage
-        .from('capacitaciones')
-        .upload(path, req.file.buffer, { contentType: req.file.mimetype })
-      if (uploadErr) return res.status(500).json({ error: 'UPLOAD_FAILED' })
-      url_material = supabase.storage.from('capacitaciones').getPublicUrl(path).data.publicUrl
+      let url_material: string | null = null
+      if (req.file) {
+        const path = `capacitaciones/${Date.now()}-${req.file.originalname}`
+        const { error: uploadErr } = await supabase.storage
+          .from('capacitaciones')
+          .upload(path, req.file.buffer, { contentType: req.file.mimetype })
+        if (uploadErr) return res.status(500).json({ error: 'UPLOAD_FAILED' })
+        url_material = supabase.storage.from('capacitaciones').getPublicUrl(path).data.publicUrl
+      }
+
+      const { data, error } = await supabase.from('capacitaciones').insert({
+        ...parsed.data,
+        url_material,
+        creado_por: req.user!.id,
+      }).select().single()
+
+      if (error) return res.status(500).json({ error: 'CREATE_FAILED' })
+      return res.status(201).json(data)
+    } catch (err) {
+      console.error(err)
+      return res.status(500).json({ error: 'Error interno' })
     }
-
-    const { data, error } = await supabase.from('capacitaciones').insert({
-      ...parsed.data,
-      url_material,
-      creado_por: req.user!.id,
-    }).select().single()
-
-    if (error) return res.status(500).json({ error: 'CREATE_FAILED' })
-    return res.status(201).json(data)
   }
 )
 
@@ -76,9 +80,14 @@ router.post('/:id/completar', requireAuth, async (req: AuthRequest, res: Respons
 
 // DELETE desactivar
 router.delete('/:id', requireAuth, checkPermission('capacitaciones', 'ELIMINAR'), async (_req: AuthRequest, res: Response) => {
-  const { error } = await supabase.from('capacitaciones').update({ activa: false }).eq('id', _req.params.id)
-  if (error) return res.status(500).json({ error: 'DELETE_FAILED' })
-  return res.json({ message: 'Capacitación desactivada' })
+  try {
+    const { error } = await supabase.from('capacitaciones').update({ activa: false }).eq('id', _req.params.id)
+    if (error) return res.status(500).json({ error: 'DELETE_FAILED' })
+    return res.json({ message: 'Capacitación desactivada' })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
 })
 
 export default router
