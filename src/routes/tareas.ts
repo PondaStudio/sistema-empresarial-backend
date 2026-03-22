@@ -19,6 +19,23 @@ const tareaSchema = z.object({
   fecha_limite: z.string().datetime().optional(),
 })
 
+router.get('/mis-tareas', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const limit = Number(req.query.limit) || 5
+    const { data, error } = await supabase
+      .from('tareas')
+      .select('*')
+      .eq('asignado_a', req.user!.id)
+      .order('created_at', { ascending: false })
+      .limit(limit)
+    if (error) return res.status(500).json({ error: 'DB_ERROR' })
+    return res.json({ tareas: data ?? [] })
+  } catch (err) {
+    console.error(err)
+    return res.json({ tareas: [] })
+  }
+})
+
 router.get('/', requireAuth, checkPermission('tareas', 'VER'), async (req: AuthRequest, res: Response) => {
   try {
     const { estado, asignada_a } = req.query as Record<string, string>

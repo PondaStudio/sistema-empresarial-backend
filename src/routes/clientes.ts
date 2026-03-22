@@ -14,13 +14,13 @@ router.get('/', requireAuth, checkPermission('clientes', 'VER'), async (req: Aut
     const { search } = req.query as Record<string, string>
     let query = supabase
       .from('clientes_frecuentes')
-      .select('id, nombre, email, rfc, telefono')
+      .select('id, nombre, email, telefono')
       .order('nombre')
       .limit(50)
 
     if (search) {
       const term = search.trim()
-      query = query.or(`nombre.ilike.%${term}%,email.ilike.%${term}%,rfc.ilike.%${term}%`)
+      query = query.or(`nombre.ilike.%${term}%,email.ilike.%${term}%`)
     }
 
     const { data, error } = await query

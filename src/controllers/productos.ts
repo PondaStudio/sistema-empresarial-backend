@@ -9,7 +9,7 @@ export async function listProductos(req: AuthRequest, res: Response) {
 
     let query = supabase
       .from('productos')
-      .select('id, codigo, nombre, descripcion, precio, cantidad, foto_url, activo, categoria_id, categorias(nombre)')
+      .select('id, codigo, nombre, descripcion, foto_url, activo, categoria_id, categorias(nombre)')
       .eq('activo', activo === 'true')
       .order('nombre')
 
