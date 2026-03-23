@@ -25,7 +25,7 @@ router.get('/mis-tareas', requireAuth, async (req: AuthRequest, res: Response) =
     const { data, error } = await supabase
       .from('tareas')
       .select('*')
-      .eq('asignado_a', req.user!.id)
+      .eq('asignada_a', req.user!.id)
       .order('created_at', { ascending: false })
       .limit(limit)
     if (error) return res.status(500).json({ error: 'DB_ERROR' })
