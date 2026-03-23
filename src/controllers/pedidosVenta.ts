@@ -46,41 +46,53 @@ export async function crearPedido(req: AuthRequest, res: Response) {
     const parsed = crearPedidoSchema.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
-    const { items, ...pedidoData } = parsed.data
+    const { items, cliente_id, nombre_cliente, notas, tipo_cliente, facturacion, descuento_especial, area } = parsed.data
     const folio = await generarFolio()
+    const sucursal_id = req.user!.sucursal_id ?? null
 
-    console.log('[crearPedido] user.id:', req.user!.id, '| sucursal_id:', req.user!.sucursal_id, '| folio:', folio)
+    console.log('[crearPedido] user.id:', req.user!.id, '| sucursal_id:', sucursal_id, '| folio:', folio)
 
-    const { data: pedido, error } = await supabase
+    const { data, error } = await supabase
       .from('pedidos_venta')
       .insert({
-        ...pedidoData,
         folio,
-        qr_code:      qrUrl(folio),
-        sucursal_id:  req.user!.sucursal_id,
-        vendedora_id: req.user!.id,
-        estado:       'capturada',
+        vendedora_id:       req.user!.id,
+        sucursal_id,
+        nombre_cliente:     nombre_cliente ?? null,
+        cliente_id:         cliente_id ?? null,
+        notas:              notas ?? null,
+        tipo_cliente:       tipo_cliente ?? null,
+        facturacion:        facturacion ?? false,
+        descuento_especial: descuento_especial ?? null,
+        area:               area ?? null,
+        estado:             'capturada',
       })
       .select()
       .single()
 
-    console.log('[crearPedido] INSERT result:', pedido?.id ?? null, '| error:', error?.message ?? null)
+    console.log('[crearPedido] INSERT result:', data?.id ?? null, '| error:', error?.message ?? null)
 
-    if (error) return res.status(500).json({ error: 'CREATE_FAILED', detail: error.message })
+    if (error) {
+      console.error('[crearPedido] ERROR COMPLETO:', error)
+      return res.status(500).json({ error: error.message })
+    }
 
     const itemsData = items.map(i => ({
-      ...i,
-      pedido_id:           pedido.id,
+      pedido_id:           data.id,
+      producto_id:         i.producto_id,
+      cantidad:            i.cantidad,
+      area:                i.area ?? null,
       estado_confirmacion: 'pendiente',
       cantidad_surtida:    0,
     }))
     const { error: itemsError } = await supabase.from('items_pedido_venta').insert(itemsData)
     if (itemsError) {
-      await supabase.from('pedidos_venta').delete().eq('id', pedido.id)
-      return res.status(500).json({ error: 'ITEMS_FAILED', detail: itemsError.message })
+      console.error('[crearPedido] ITEMS ERROR:', itemsError)
+      await supabase.from('pedidos_venta').delete().eq('id', data.id)
+      return res.status(500).json({ error: itemsError.message })
     }
 
-    return res.status(201).json(pedido)
+    return res.status(201).json(data)
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
