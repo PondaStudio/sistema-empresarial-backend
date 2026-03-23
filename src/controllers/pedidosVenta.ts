@@ -35,7 +35,9 @@ const crearPedidoSchema = z.object({
   descuento_especial: z.number().min(0).max(100).optional(),
   area:               z.string().optional(),
   items: z.array(z.object({
-    producto_id: z.string().uuid(),
+    producto_id: z.string().uuid().optional().nullable(),
+    codigo:      z.string().min(1),
+    nombre:      z.string().min(1),
     cantidad:    z.number().int().positive(),
     area:        z.string().optional(),
   })).min(1),
@@ -93,7 +95,9 @@ export async function crearPedido(req: AuthRequest, res: Response) {
 
     const itemsData = items.map(i => ({
       pedido_id:           data.id,
-      producto_id:         i.producto_id,
+      producto_id:         i.producto_id ?? null,
+      codigo:              i.codigo,
+      nombre:              i.nombre,
       cantidad:            i.cantidad,
       area:                i.area ?? null,
       estado_confirmacion: 'pendiente',
