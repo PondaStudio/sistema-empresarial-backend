@@ -49,6 +49,8 @@ export async function crearPedido(req: AuthRequest, res: Response) {
     const { items, ...pedidoData } = parsed.data
     const folio = await generarFolio()
 
+    console.log('[crearPedido] user.id:', req.user!.id, '| sucursal_id:', req.user!.sucursal_id, '| folio:', folio)
+
     const { data: pedido, error } = await supabase
       .from('pedidos_venta')
       .insert({
@@ -61,6 +63,8 @@ export async function crearPedido(req: AuthRequest, res: Response) {
       })
       .select()
       .single()
+
+    console.log('[crearPedido] INSERT result:', pedido?.id ?? null, '| error:', error?.message ?? null)
 
     if (error) return res.status(500).json({ error: 'CREATE_FAILED', detail: error.message })
 
@@ -88,6 +92,7 @@ export async function listPedidos(req: AuthRequest, res: Response) {
   try {
     const { estado, fecha_desde, fecha_hasta } = req.query as Record<string, string>
     const nivel = req.user!.rol_nivel
+    console.log('[listPedidos] nivel:', nivel, '| user.id:', req.user!.id, '| sucursal_id:', req.user!.sucursal_id)
 
     let query = supabase
       .from('pedidos_venta')
@@ -112,11 +117,15 @@ export async function listPedidos(req: AuthRequest, res: Response) {
     }
     // nivel 1-3: sin filtro adicional
 
+    const filtroAplicado = nivel >= 10 ? `vendedora_id=${req.user!.id}` : nivel === 9 ? 'cobrada/en_revision_salida' : nivel === 8 ? 'lista_para_cobro/cobrada' : nivel >= 4 ? `sucursal_id=${req.user!.sucursal_id}` : 'sin filtro'
+    console.log('[listPedidos] filtro:', filtroAplicado, '| estado query:', estado ?? 'todos')
+
     if (estado) query = query.eq('estado', estado)
     if (fecha_desde) query = query.gte('created_at', fecha_desde)
     if (fecha_hasta) query = query.lte('created_at', fecha_hasta)
 
     const { data, error } = await query
+    console.log('[listPedidos] resultados:', data?.length ?? 0, '| error:', error?.message ?? null)
     if (error) return res.status(500).json({ error: 'DB_ERROR', detail: error.message })
     return res.json(data ?? [])
   } catch (err) {
