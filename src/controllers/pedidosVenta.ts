@@ -43,8 +43,22 @@ const crearPedidoSchema = z.object({
 
 export async function crearPedido(req: AuthRequest, res: Response) {
   try {
+    console.log('[crearPedido] body recibido:', JSON.stringify(req.body))
+    console.log('[crearPedido] user:', JSON.stringify(req.user))
+
+    // Validación rápida con mensaje legible antes de Zod
+    if (!req.body.nombre_cliente && !req.body.cliente_id) {
+      return res.status(400).json({ error: 'nombre_cliente y productos son requeridos', body: req.body })
+    }
+    if (!Array.isArray(req.body.items) || req.body.items.length === 0) {
+      return res.status(400).json({ error: 'nombre_cliente y productos son requeridos', body: req.body })
+    }
+
     const parsed = crearPedidoSchema.safeParse(req.body)
-    if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
+    if (!parsed.success) {
+      console.log('[crearPedido] VALIDATION ERROR:', JSON.stringify(parsed.error.issues))
+      return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
+    }
 
     const { items, cliente_id, nombre_cliente, notas, tipo_cliente, facturacion, descuento_especial, area } = parsed.data
     const folio = await generarFolio()
