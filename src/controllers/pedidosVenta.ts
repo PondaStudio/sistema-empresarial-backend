@@ -67,6 +67,14 @@ export async function crearPedido(req: AuthRequest, res: Response) {
     const sucursal_id = req.user!.sucursal_id ?? null
 
     console.log('[crearPedido] user.id:', req.user!.id, '| sucursal_id:', sucursal_id, '| folio:', folio)
+    console.log('[DEBUG] insertando pedido:', {
+      folio,
+      vendedora_id:       req.user!.id,
+      sucursal_id,
+      nombre_cliente:     nombre_cliente ?? null,
+      cliente_id:         cliente_id ?? null,
+      estado:             'capturada',
+    })
 
     const { data, error } = await supabase
       .from('pedidos_venta')
@@ -111,9 +119,9 @@ export async function crearPedido(req: AuthRequest, res: Response) {
     }
 
     return res.status(201).json(data)
-  } catch (err) {
-    console.error(err)
-    return res.status(500).json({ error: 'Error interno' })
+  } catch (error: any) {
+    console.error('[createPedido] ERROR:', error?.message, error?.details, error?.hint)
+    return res.status(500).json({ error: error?.message, details: error?.details, hint: error?.hint })
   }
 }
 
