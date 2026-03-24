@@ -189,7 +189,7 @@ export async function getPedido(req: AuthRequest, res: Response) {
         sucursales(nombre),
         clientes_frecuentes(nombre, telefono),
         items_pedido_venta(
-          id, cantidad, cantidad_surtida, estado_confirmacion,
+          id, codigo, nombre, cantidad, cantidad_surtida, estado_confirmacion,
           area, incidencia, observaciones, confirmado_at,
           productos!producto_id(id, codigo, nombre, foto_url),
           almacenista:usuarios!almacenista_id(id, nombre)
@@ -205,7 +205,17 @@ export async function getPedido(req: AuthRequest, res: Response) {
       return res.status(403).json({ error: 'FORBIDDEN' })
     }
 
-    return res.json(data)
+    // Normalizar: items_pedido_venta → items, estado_confirmacion → estado_item
+    const { items_pedido_venta, ...rest } = data as any
+    const normalizado = {
+      ...rest,
+      items: (items_pedido_venta ?? []).map((it: any) => ({
+        ...it,
+        estado_item: it.estado_confirmacion ?? 'pendiente',
+      })),
+    }
+
+    return res.json(normalizado)
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
@@ -234,6 +244,58 @@ export async function getPedidoByFolio(req: AuthRequest, res: Response) {
 
     if (error || !data) return res.status(404).json({ error: 'NOT_FOUND' })
     return res.json(data)
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
+}
+
+// ── PATCH /:id — Editar datos de la nota (nivel <=2 o 4) ─
+const editarPedidoSchema = z.object({
+  nombre_cliente:     z.string().optional(),
+  notas:              z.string().optional(),
+  tipo_cliente:       z.string().optional(),
+  facturacion:        z.boolean().optional(),
+  descuento_especial: z.boolean().optional(),
+  area:               z.string().optional(),
+})
+
+export async function editarPedido(req: AuthRequest, res: Response) {
+  try {
+    const nivel = req.user!.rol_nivel
+    if (nivel > 2 && nivel !== 4) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo niveles 1, 2 y 4 pueden editar notas' })
+    }
+    const parsed = editarPedidoSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
+
+    const { error } = await supabase
+      .from('pedidos_venta')
+      .update(parsed.data)
+      .eq('id', req.params.id)
+
+    if (error) return res.status(500).json({ error: error.message })
+    return res.json({ message: 'Nota actualizada' })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
+}
+
+// ── DELETE /:id — Borrar nota (nivel <=2 o 4) ────────────
+export async function deletePedido(req: AuthRequest, res: Response) {
+  try {
+    const nivel = req.user!.rol_nivel
+    if (nivel > 2 && nivel !== 4) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo niveles 1, 2 y 4 pueden borrar notas' })
+    }
+
+    // Borrar items primero (FK constraint)
+    await supabase.from('items_pedido_venta').delete().eq('pedido_id', req.params.id)
+
+    const { error } = await supabase.from('pedidos_venta').delete().eq('id', req.params.id)
+    if (error) return res.status(500).json({ error: error.message })
+    return res.json({ message: 'Nota eliminada' })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
