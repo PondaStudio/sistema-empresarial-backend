@@ -128,9 +128,10 @@ export async function crearPedido(req: AuthRequest, res: Response) {
 // ── GET / — Lista filtrada por rol ────────────────────────
 export async function listPedidos(req: AuthRequest, res: Response) {
   try {
-    const { estado, fecha_desde, fecha_hasta } = req.query as Record<string, string>
+    const { estado, estados, fecha_desde, fecha_hasta } = req.query as Record<string, string>
     const nivel = req.user!.rol_nivel
-    console.log('[listPedidos] nivel:', nivel, '| user.id:', req.user!.id, '| sucursal_id:', req.user!.sucursal_id)
+    const sucursalId = req.user!.sucursal_id
+    console.log('[listPedidos] nivel:', nivel, '| user.id:', req.user!.id, '| sucursal_id:', sucursalId)
 
     let query = supabase
       .from('pedidos_venta')
@@ -139,26 +140,29 @@ export async function listPedidos(req: AuthRequest, res: Response) {
       .limit(100)
 
     if (nivel >= 10) {
-      // Vendedora: solo sus propias notas
+      // Vendedora/promotora: solo sus propias notas
       query = query.eq('vendedora_id', req.user!.id)
-    } else if (nivel === 9) {
-      // Checador: notas cobradas o en revisión de salida
-      if (!estado) query = query.in('estado', ['cobrada', 'en_revision_salida'])
-      if (req.user!.sucursal_id) query = query.eq('sucursal_id', req.user!.sucursal_id)
     } else if (nivel === 8) {
-      // Cajera: notas listas para cobrar
-      if (!estado) query = query.in('estado', ['lista_para_cobro', 'cobrada'])
-      if (req.user!.sucursal_id) query = query.eq('sucursal_id', req.user!.sucursal_id)
+      // Cajera: notas listas para cobrar (filtro de estado por defecto)
+      if (!estado && !estados) query = query.in('estado', ['lista_para_cobro', 'cobrada'])
+      if (sucursalId) query = query.eq('sucursal_id', sucursalId)
     } else if (nivel >= 4) {
-      // Encargado/almacenista: toda su sucursal
-      if (req.user!.sucursal_id) query = query.eq('sucursal_id', req.user!.sucursal_id)
+      // Almacenista (9), encargado (6-7), admin sucursal (4-5): toda su sucursal
+      // Si sucursal_id es null, devuelve todas sin filtro de sucursal
+      if (sucursalId) query = query.eq('sucursal_id', sucursalId)
     }
     // nivel 1-3: sin filtro adicional
 
-    const filtroAplicado = nivel >= 10 ? `vendedora_id=${req.user!.id}` : nivel === 9 ? 'cobrada/en_revision_salida' : nivel === 8 ? 'lista_para_cobro/cobrada' : nivel >= 4 ? `sucursal_id=${req.user!.sucursal_id}` : 'sin filtro'
-    console.log('[listPedidos] filtro:', filtroAplicado, '| estado query:', estado ?? 'todos')
+    console.log('[listPedidos] sucursal_id del usuario:', sucursalId, '| aplicando filtro sucursal:', !!sucursalId)
 
-    if (estado) query = query.eq('estado', estado)
+    // Filtro por múltiples estados (param ?estados=capturada,en_surtido)
+    if (estados) {
+      const estadosArr = estados.split(',').map(s => s.trim()).filter(Boolean)
+      if (estadosArr.length > 0) query = query.in('estado', estadosArr)
+    } else if (estado) {
+      query = query.eq('estado', estado)
+    }
+
     if (fecha_desde) query = query.gte('created_at', fecha_desde)
     if (fecha_hasta) query = query.lte('created_at', fecha_hasta)
 
