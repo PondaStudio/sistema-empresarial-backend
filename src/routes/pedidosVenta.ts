@@ -6,8 +6,29 @@ import {
 import { requireAuth } from '../middleware/auth'
 import { checkPermission } from '../middleware/permissions'
 import { auditLog } from '../middleware/audit'
+import { supabase } from '../lib/supabase'
+import { AuthRequest } from '../middleware/auth'
+import { Response } from 'express'
 
 const router = Router()
+
+// ── Endpoint de diagnóstico temporal ──────────────────────
+router.get('/test-insert', requireAuth, async (req: AuthRequest, res: Response) => {
+  const testFolio = `TEST-${Date.now()}`
+  const { data, error } = await supabase
+    .from('pedidos_venta')
+    .insert({
+      folio:          testFolio,
+      vendedora_id:   req.user!.id,
+      sucursal_id:    req.user!.sucursal_id ?? null,
+      nombre_cliente: 'TEST DIAGNÓSTICO',
+      estado:         'capturada',
+      facturacion:    false,
+    })
+    .select()
+    .single()
+  return res.json({ ok: !error, data, error, user: req.user })
+})
 
 // Flujo: capturada → en_surtido → surtido_parcial → completa_en_piso
 //        → lista_para_cobro → cobrada → en_revision_salida → cerrada
