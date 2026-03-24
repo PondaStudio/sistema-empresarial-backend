@@ -8,6 +8,7 @@ export interface AuthRequest extends Request {
     rol_id: number
     rol_nivel: number
     sucursal_id: string | null
+    numero_agente?: string | null
     isMock?: boolean
   }
 }
@@ -45,15 +46,30 @@ export async function requireAuth(
     }
 
     const mapped = MOCK_USER_IDS[isNaN(nivel) ? -1 : nivel]
+    const mockUserId = tokenUid ?? mapped?.id ?? null
 
     req.user = {
-      id:          tokenUid ?? mapped?.id ?? 'mock-user',
+      id:          mockUserId ?? 'mock-user',
       email:       mapped?.email ?? 'mock@dev.local',
       rol_id:      0,
       rol_nivel:   isNaN(nivel) ? 99 : nivel,
       sucursal_id: null,
       isMock:      true,
     }
+
+    if (mockUserId) {
+      const { data: userData } = await supabase
+        .from('usuarios')
+        .select('sucursal_id, numero_agente')
+        .eq('id', mockUserId)
+        .single()
+
+      if (userData) {
+        req.user.sucursal_id = userData.sucursal_id
+        req.user.numero_agente = userData.numero_agente
+      }
+    }
+
     return next()
   }
 
