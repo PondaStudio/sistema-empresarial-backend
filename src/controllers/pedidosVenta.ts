@@ -181,36 +181,12 @@ export async function getPedido(req: AuthRequest, res: Response) {
   try {
     const { data, error } = await supabase
       .from('pedidos_venta')
-      .select(`
-        *,
-        vendedora:usuarios!vendedora_id(id, nombre),
-        cajera:usuarios!cajera_id(id, nombre),
-        checador:usuarios!checador_id(id, nombre),
-        sucursales(nombre),
-        clientes_frecuentes(nombre, telefono),
-        items_pedido_venta(
-          id, codigo, nombre, cantidad, cantidad_surtida, estado_confirmacion,
-          area, incidencia, observaciones, confirmado_at,
-          productos!producto_id(id, codigo, nombre, foto_url),
-          almacenista:usuarios!almacenista_id(id, nombre)
-        )
-      `)
+      .select('*, vendedora:usuarios!vendedora_id(id, nombre), cajera:usuarios!cajera_id(id, nombre), checador:usuarios!checador_id(id, nombre), sucursales(nombre), clientes_frecuentes(nombre, telefono), items:items_pedido_venta(id, codigo, nombre, cantidad, cantidad_surtida, estado_confirmacion, area, incidencia, observaciones, confirmado_at)')
       .eq('id', req.params.id)
       .single()
 
     if (error || !data) return res.status(404).json({ error: 'NOT_FOUND' })
-
-    // Normalizar: items_pedido_venta → items, estado_confirmacion → estado_item
-    const { items_pedido_venta, ...rest } = data as any
-    const normalizado = {
-      ...rest,
-      items: (items_pedido_venta ?? []).map((it: any) => ({
-        ...it,
-        estado_item: it.estado_confirmacion ?? 'pendiente',
-      })),
-    }
-
-    return res.json(normalizado)
+    return res.json(data)
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
@@ -352,12 +328,11 @@ export async function reemplazarItems(req: AuthRequest, res: Response) {
 
 // ── PATCH /:id/surtir-item/:itemId — Almacenista surte ───
 const surtirItemSchema = z.object({
-  cantidad_surtida:      z.number().int().min(0),
-  estado_confirmacion:   z.enum(['pendiente', 'surtido', 'surtido_parcial', 'no_disponible', 'sustituto']),
-  area:                  z.string().optional(),
-  incidencia:            z.string().optional(),
-  observaciones:         z.string().optional(),
-  sustituto_producto_id: z.string().uuid().optional(),
+  cantidad_surtida:    z.number().int().min(0).optional(),
+  estado_confirmacion: z.enum(['pendiente', 'surtido', 'surtido_parcial', 'no_disponible', 'sustituto']).optional(),
+  area:                z.string().optional(),
+  incidencia:          z.string().optional(),
+  observaciones:       z.string().optional(),
 })
 
 export async function surtirItem(req: AuthRequest, res: Response) {
@@ -377,17 +352,25 @@ export async function surtirItem(req: AuthRequest, res: Response) {
     const parsed = surtirItemSchema.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
-    const { error: updateError } = await supabase
+    const updatePayload: Record<string, any> = {
+      almacenista_id: req.user!.id,
+      confirmado_at:  new Date().toISOString(),
+    }
+    if (parsed.data.cantidad_surtida    !== undefined) updatePayload.cantidad_surtida    = parsed.data.cantidad_surtida
+    if (parsed.data.estado_confirmacion !== undefined) updatePayload.estado_confirmacion = parsed.data.estado_confirmacion
+    if (parsed.data.area                !== undefined) updatePayload.area                = parsed.data.area
+    if (parsed.data.incidencia          !== undefined) updatePayload.incidencia          = parsed.data.incidencia
+    if (parsed.data.observaciones       !== undefined) updatePayload.observaciones       = parsed.data.observaciones
+
+    const { data: updatedItem, error: updateError } = await supabase
       .from('items_pedido_venta')
-      .update({
-        ...parsed.data,
-        almacenista_id: req.user!.id,
-        confirmado_at:  new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq('id', itemId)
       .eq('pedido_id', pedidoId)
+      .select('id, codigo, nombre, cantidad, cantidad_surtida, estado_confirmacion, area, incidencia')
+      .single()
 
-    if (updateError) return res.status(500).json({ error: 'UPDATE_FAILED', detail: updateError.message })
+    if (updateError) return res.status(500).json({ error: 'UPDATE_FAILED', detail: updateError.message, hint: updateError.hint })
 
     // Recalcular estado de la nota según todos sus items
     const { data: allItems } = await supabase
@@ -412,7 +395,7 @@ export async function surtirItem(req: AuthRequest, res: Response) {
 
     await supabase.from('pedidos_venta').update({ estado: nuevoEstado }).eq('id', pedidoId)
 
-    return res.json({ message: 'Item actualizado', estado_nota: nuevoEstado, allResolved })
+    return res.json({ message: 'Item actualizado', item: updatedItem, estado_nota: nuevoEstado, allResolved })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
