@@ -208,23 +208,21 @@ export async function getPedidoByFolio(req: AuthRequest, res: Response) {
   try {
     const { data, error } = await supabase
       .from('pedidos_venta')
-      .select(`
-        *,
-        vendedora:usuarios!vendedora_id(id, nombre),
-        cajera:usuarios!cajera_id(id, nombre),
-        checador:usuarios!checador_id(id, nombre),
-        sucursales(nombre),
-        items_pedido_venta(
-          id, cantidad, cantidad_surtida, estado_confirmacion,
-          area, incidencia, observaciones,
-          productos!producto_id(id, codigo, nombre, foto_url)
-        )
-      `)
+      .select(`*, vendedora:usuarios!vendedora_id(id, nombre, numero_agente), cajera:usuarios!cajera_id(id, nombre), sucursales(nombre), items:items_pedido_venta(id, codigo, nombre, cantidad, cantidad_surtida, estado_confirmacion, area, incidencia, observaciones)`)
       .eq('folio', req.params.folio)
       .single()
 
     if (error || !data) return res.status(404).json({ error: 'NOT_FOUND' })
-    return res.json(data)
+
+    // Normalizar estado_item (alias de estado_confirmacion)
+    const normalized = {
+      ...data,
+      items: (data.items ?? []).map((it: any) => ({
+        ...it,
+        estado_item: it.estado_confirmacion,
+      })),
+    }
+    return res.json(normalized)
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
@@ -474,23 +472,28 @@ export async function cobrarNota(req: AuthRequest, res: Response) {
   }
 }
 
-// ── PATCH /:id/checada-piso — Checador confirma en piso ──
+// ── PATCH /:id/checada-piso — Almacenista/checador confirma en piso ──
 export async function checadaPiso(req: AuthRequest, res: Response) {
   try {
+    const nivel = req.user!.rol_nivel
+    if (nivel !== 9) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo nivel 9 puede confirmar checada en piso' })
+    }
+
     const { data: pedido } = await supabase
       .from('pedidos_venta')
       .select('estado')
       .eq('id', req.params.id)
       .single()
 
-    if (!pedido || pedido.estado !== 'cobrada') {
-      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar cobrada para checarse en piso' })
+    if (!pedido || pedido.estado !== 'completa_en_piso') {
+      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar completa en piso para checarse' })
     }
 
     const { error } = await supabase.from('pedidos_venta').update({
-      estado:           'checada_en_piso',
-      checada_piso_id:  req.user!.id,
-      checada_piso_at:  new Date().toISOString(),
+      estado:          'checada_en_piso',
+      checada_piso_id: req.user!.id,
+      checada_piso_at: new Date().toISOString(),
     }).eq('id', req.params.id)
 
     if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
@@ -501,9 +504,15 @@ export async function checadaPiso(req: AuthRequest, res: Response) {
   }
 }
 
-// ── PATCH /:id/checada-salida — Checador confirma salida ─
+// ── PATCH /:id/checada-salida — Checador rápido confirma salida ─
 export async function checadaSalida(req: AuthRequest, res: Response) {
   try {
+    const nivel   = req.user!.rol_nivel
+    const subtipo = req.user!.subtipo ?? null
+    if (nivel !== 9 || subtipo !== 'checador_rapido') {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo checador_rapido (nivel 9) puede confirmar salida' })
+    }
+
     const { data: pedido } = await supabase
       .from('pedidos_venta')
       .select('estado')
@@ -515,9 +524,9 @@ export async function checadaSalida(req: AuthRequest, res: Response) {
     }
 
     const { error } = await supabase.from('pedidos_venta').update({
-      estado:             'checada_en_salida',
-      checada_salida_id:  req.user!.id,
-      checada_salida_at:  new Date().toISOString(),
+      estado:            'checada_en_salida',
+      checada_salida_id: req.user!.id,
+      checada_salida_at: new Date().toISOString(),
     }).eq('id', req.params.id)
 
     if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
@@ -531,6 +540,13 @@ export async function checadaSalida(req: AuthRequest, res: Response) {
 // ── PATCH /:id/cerrar — Cierre definitivo ────────────────
 export async function cerrarNota(req: AuthRequest, res: Response) {
   try {
+    const nivel   = req.user!.rol_nivel
+    const subtipo = req.user!.subtipo ?? null
+    const esChecador = subtipo === 'checador_escaner' || subtipo === 'checador_rapido'
+    if (nivel > 7 && !(nivel === 9 && esChecador)) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo nivel ≤7 o checador nivel 9 puede cerrar notas' })
+    }
+
     const { data: pedido } = await supabase
       .from('pedidos_venta')
       .select('estado')
