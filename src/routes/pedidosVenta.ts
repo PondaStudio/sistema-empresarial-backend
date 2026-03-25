@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import {
   listPedidos, crearPedido, getPedido, getPedidoByFolio,
-  editarPedido, deletePedido,
+  editarPedido, deletePedido, reemplazarItems,
   surtirItem, validarPiso, cobrarNota, revisarSalida, cerrarNota,
 } from '../controllers/pedidosVenta'
 import { requireAuth } from '../middleware/auth'
@@ -72,6 +72,13 @@ router.delete('/:id',
   checkPermission('pedidos_venta', 'ELIMINAR'),
   auditLog('pedidos_venta', 'ELIMINAR'),
   deletePedido
+)
+
+router.patch('/:id/items',
+  requireAuth,
+  checkPermission('pedidos_venta', 'EDITAR'),
+  auditLog('pedidos_venta', 'EDITAR'),
+  reemplazarItems
 )
 
 // Almacenista actualiza item: cantidad_surtida, estado, área, incidencia

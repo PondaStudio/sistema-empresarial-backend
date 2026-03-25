@@ -200,11 +200,6 @@ export async function getPedido(req: AuthRequest, res: Response) {
 
     if (error || !data) return res.status(404).json({ error: 'NOT_FOUND' })
 
-    // Vendedora solo puede ver sus propias notas
-    if (req.user!.rol_nivel >= 10 && (data as any).vendedora_id !== req.user!.id) {
-      return res.status(403).json({ error: 'FORBIDDEN' })
-    }
-
     // Normalizar: items_pedido_venta → items, estado_confirmacion → estado_item
     const { items_pedido_venta, ...rest } = data as any
     const normalizado = {
@@ -296,6 +291,59 @@ export async function deletePedido(req: AuthRequest, res: Response) {
     const { error } = await supabase.from('pedidos_venta').delete().eq('id', req.params.id)
     if (error) return res.status(500).json({ error: error.message })
     return res.json({ message: 'Nota eliminada' })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
+}
+
+// ── PATCH /:id/items — Reemplazar items (nivel <=2 o 4) ──
+export async function reemplazarItems(req: AuthRequest, res: Response) {
+  try {
+    const nivel = req.user!.rol_nivel
+    if (nivel > 2 && nivel !== 4) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo niveles 1, 2 y 4 pueden editar items' })
+    }
+
+    const schema = z.object({
+      items: z.array(z.object({
+        producto_id: z.string().uuid().optional().nullable(),
+        codigo:      z.string().min(1),
+        nombre:      z.string().min(1),
+        cantidad:    z.number().int().positive(),
+        area:        z.string().optional(),
+      })).min(1),
+    })
+    const parsed = schema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
+
+    const pedidoId = req.params.id
+
+    // Borrar items existentes
+    const { error: delError } = await supabase
+      .from('items_pedido_venta')
+      .delete()
+      .eq('pedido_id', pedidoId)
+    if (delError) return res.status(500).json({ error: delError.message })
+
+    // Insertar nuevos
+    const itemsData = parsed.data.items.map(i => ({
+      pedido_id:           pedidoId,
+      producto_id:         i.producto_id ?? null,
+      codigo:              i.codigo,
+      nombre:              i.nombre,
+      cantidad:            i.cantidad,
+      area:                i.area ?? null,
+      estado_confirmacion: 'pendiente',
+      cantidad_surtida:    0,
+    }))
+    const { data, error: insError } = await supabase
+      .from('items_pedido_venta')
+      .insert(itemsData)
+      .select()
+    if (insError) return res.status(500).json({ error: insError.message })
+
+    return res.json({ items: data })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
