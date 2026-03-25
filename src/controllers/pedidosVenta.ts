@@ -139,16 +139,26 @@ export async function listPedidos(req: AuthRequest, res: Response) {
       .order('created_at', { ascending: false })
       .limit(100)
 
+    const subtipo = req.user!.subtipo ?? null
+    const esChecador = subtipo === 'checador_escaner' || subtipo === 'checador_rapido'
+
     if (nivel >= 10) {
       // Vendedora/promotora: solo sus propias notas
       query = query.eq('vendedora_id', req.user!.id)
+    } else if (nivel === 9 && esChecador) {
+      // Checador: notas cobradas o checadas en piso (para escanear salida)
+      if (!estado && !estados) query = query.in('estado', ['cobrada', 'checada_en_piso'])
+      if (sucursalId) query = query.eq('sucursal_id', sucursalId)
+    } else if (nivel === 9) {
+      // Almacenista G1/G2: notas pendientes de surtir
+      if (!estado && !estados) query = query.in('estado', ['capturada', 'en_surtido', 'surtido_parcial'])
+      if (sucursalId) query = query.eq('sucursal_id', sucursalId)
     } else if (nivel === 8) {
-      // Cajera: notas listas para cobrar (filtro de estado por defecto)
+      // Cajera: notas listas para cobrar
       if (!estado && !estados) query = query.in('estado', ['lista_para_cobro', 'cobrada'])
       if (sucursalId) query = query.eq('sucursal_id', sucursalId)
     } else if (nivel >= 4) {
-      // Almacenista (9), encargado (6-7), admin sucursal (4-5): toda su sucursal
-      // Si sucursal_id es null, devuelve todas sin filtro de sucursal
+      // Encargado/admin sucursal: toda su sucursal, si sucursal_id es null devuelve todas
       if (sucursalId) query = query.eq('sucursal_id', sucursalId)
     }
     // nivel 1-3: sin filtro adicional
@@ -464,8 +474,8 @@ export async function cobrarNota(req: AuthRequest, res: Response) {
   }
 }
 
-// ── PATCH /:id/revisar-salida — Checador escanea ─────────
-export async function revisarSalida(req: AuthRequest, res: Response) {
+// ── PATCH /:id/checada-piso — Checador confirma en piso ──
+export async function checadaPiso(req: AuthRequest, res: Response) {
   try {
     const { data: pedido } = await supabase
       .from('pedidos_venta')
@@ -474,17 +484,44 @@ export async function revisarSalida(req: AuthRequest, res: Response) {
       .single()
 
     if (!pedido || pedido.estado !== 'cobrada') {
-      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar cobrada' })
+      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar cobrada para checarse en piso' })
     }
 
     const { error } = await supabase.from('pedidos_venta').update({
-      estado:      'en_revision_salida',
-      checador_id: req.user!.id,
-      checador_at: new Date().toISOString(),
+      estado:           'checada_en_piso',
+      checada_piso_id:  req.user!.id,
+      checada_piso_at:  new Date().toISOString(),
     }).eq('id', req.params.id)
 
-    if (error) return res.status(500).json({ error: 'UPDATE_FAILED' })
-    return res.json({ message: 'En revisión de salida' })
+    if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
+    return res.json({ message: 'Nota checada en piso' })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
+}
+
+// ── PATCH /:id/checada-salida — Checador confirma salida ─
+export async function checadaSalida(req: AuthRequest, res: Response) {
+  try {
+    const { data: pedido } = await supabase
+      .from('pedidos_venta')
+      .select('estado')
+      .eq('id', req.params.id)
+      .single()
+
+    if (!pedido || pedido.estado !== 'checada_en_piso') {
+      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar checada en piso' })
+    }
+
+    const { error } = await supabase.from('pedidos_venta').update({
+      estado:             'checada_en_salida',
+      checada_salida_id:  req.user!.id,
+      checada_salida_at:  new Date().toISOString(),
+    }).eq('id', req.params.id)
+
+    if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
+    return res.json({ message: 'Nota checada en salida' })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
@@ -500,8 +537,8 @@ export async function cerrarNota(req: AuthRequest, res: Response) {
       .eq('id', req.params.id)
       .single()
 
-    if (!pedido || pedido.estado !== 'en_revision_salida') {
-      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar en revisión de salida' })
+    if (!pedido || pedido.estado !== 'checada_en_salida') {
+      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar checada en salida para cerrar' })
     }
 
     const { error } = await supabase.from('pedidos_venta').update({

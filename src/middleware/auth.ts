@@ -9,6 +9,7 @@ export interface AuthRequest extends Request {
     rol_nivel: number
     sucursal_id: string | null
     numero_agente?: string | null
+    subtipo?: string | null
     isMock?: boolean
   }
 }
@@ -60,13 +61,14 @@ export async function requireAuth(
     if (mockUserId) {
       const { data: userData } = await supabase
         .from('usuarios')
-        .select('sucursal_id, numero_agente')
+        .select('sucursal_id, numero_agente, subtipo')
         .eq('id', mockUserId)
         .single()
 
       if (userData) {
         req.user.sucursal_id = userData.sucursal_id
         req.user.numero_agente = userData.numero_agente
+        req.user.subtipo = userData.subtipo ?? null
       }
     }
 
@@ -81,7 +83,7 @@ export async function requireAuth(
   // Fetch user profile with role info
   const { data: profile, error: profileError } = await supabase
     .from('usuarios')
-    .select('id, email, rol_id, roles(nivel), sucursal_id')
+    .select('id, email, rol_id, roles(nivel), sucursal_id, subtipo')
     .eq('id', data.user.id)
     .single()
 
@@ -95,6 +97,7 @@ export async function requireAuth(
     rol_id: profile.rol_id,
     rol_nivel: (profile as any).roles?.nivel ?? 99,
     sucursal_id: profile.sucursal_id,
+    subtipo: (profile as any).subtipo ?? null,
   }
 
   next()

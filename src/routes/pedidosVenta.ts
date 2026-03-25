@@ -2,7 +2,7 @@ import { Router } from 'express'
 import {
   listPedidos, crearPedido, getPedido, getPedidoByFolio,
   editarPedido, deletePedido, reemplazarItems,
-  surtirItem, validarPiso, cobrarNota, revisarSalida, cerrarNota,
+  surtirItem, validarPiso, cobrarNota, checadaPiso, checadaSalida, cerrarNota,
 } from '../controllers/pedidosVenta'
 import { requireAuth } from '../middleware/auth'
 import { checkPermission } from '../middleware/permissions'
@@ -105,12 +105,20 @@ router.patch('/:id/cobrar',
   cobrarNota
 )
 
-// Checador escanea → en_revision_salida
-router.patch('/:id/revisar-salida',
+// Checador confirma mercancía en piso → checada_en_piso
+router.patch('/:id/checada-piso',
   requireAuth,
   checkPermission('pedidos_venta', 'APROBAR'),
   auditLog('pedidos_venta', 'APROBAR'),
-  revisarSalida
+  checadaPiso
+)
+
+// Checador confirma salida → checada_en_salida
+router.patch('/:id/checada-salida',
+  requireAuth,
+  checkPermission('pedidos_venta', 'APROBAR'),
+  auditLog('pedidos_venta', 'APROBAR'),
+  checadaSalida
 )
 
 // Cierre definitivo → cerrada

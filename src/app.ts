@@ -59,9 +59,11 @@ api.use('/proveedores', proveedoresRoutes)
 // Wave 3 routes
 import pedidosVentaRoutes from './routes/pedidosVenta'
 import clientesRoutes     from './routes/clientes'
+import areasBodegaRoutes  from './routes/areasBodega'
 
 api.use('/pedidos/venta', pedidosVentaRoutes)
 api.use('/clientes',      clientesRoutes)
+api.use('/areas-bodega',  areasBodegaRoutes)
 
 // Wave 4 routes
 import comunicacionRoutes from './routes/comunicacion'
