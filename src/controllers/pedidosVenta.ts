@@ -487,20 +487,25 @@ export async function checadaPiso(req: AuthRequest, res: Response) {
       .single()
 
     if (!pedido || pedido.estado !== 'cobrada') {
-      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar cobrada para checarse en piso' })
+      console.error('[checadaPiso] estado actual:', pedido?.estado ?? 'NOT_FOUND', '| id:', req.params.id)
+      return res.status(400).json({ error: 'INVALID_STATE', estado_actual: pedido?.estado ?? null, message: 'La nota debe estar cobrada para checarse en piso' })
     }
 
+    console.log('[checadaPiso] actualizando id:', req.params.id, '| user:', req.user!.id)
     const { error } = await supabase.from('pedidos_venta').update({
       estado:          'checada_en_piso',
       checada_piso_id: req.user!.id,
       checada_piso_at: new Date().toISOString(),
     }).eq('id', req.params.id)
 
-    if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
+    if (error) {
+      console.error('[checadaPiso] UPDATE ERROR:', JSON.stringify(error))
+      return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message, hint: error.hint, code: error.code })
+    }
     return res.json({ message: 'Nota checada en piso' })
-  } catch (err) {
-    console.error(err)
-    return res.status(500).json({ error: 'Error interno' })
+  } catch (err: any) {
+    console.error('[checadaPiso] CATCH:', err?.message, err?.details)
+    return res.status(500).json({ error: err?.message ?? 'Error interno' })
   }
 }
 
