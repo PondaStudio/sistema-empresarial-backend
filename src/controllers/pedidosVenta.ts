@@ -486,23 +486,28 @@ export async function checadaPiso(req: AuthRequest, res: Response) {
       .eq('id', req.params.id)
       .single()
 
+    console.log('[checadaPiso] nota actual:', pedido?.estado, '| user nivel:', req.user!.rol_nivel, '| subtipo:', req.user!.subtipo)
+
     if (!pedido || pedido.estado !== 'cobrada') {
-      console.error('[checadaPiso] estado actual:', pedido?.estado ?? 'NOT_FOUND', '| id:', req.params.id)
-      return res.status(400).json({ error: 'INVALID_STATE', estado_actual: pedido?.estado ?? null, message: 'La nota debe estar cobrada para checarse en piso' })
+      return res.status(400).json({
+        error: `Estado inválido. Se esperaba 'cobrada' pero la nota está en '${pedido?.estado ?? 'NOT_FOUND'}'`,
+        estado_actual: pedido?.estado ?? null,
+      })
     }
 
-    console.log('[checadaPiso] actualizando id:', req.params.id, '| user:', req.user!.id)
-    const { error } = await supabase.from('pedidos_venta').update({
+    const { data: updated, error } = await supabase.from('pedidos_venta').update({
       estado:          'checada_en_piso',
       checada_piso_id: req.user!.id,
       checada_piso_at: new Date().toISOString(),
-    }).eq('id', req.params.id)
+    }).eq('id', req.params.id).select('id, estado')
+
+    console.log('[checadaPiso] update result:', JSON.stringify(updated), '| error:', JSON.stringify(error))
 
     if (error) {
       console.error('[checadaPiso] UPDATE ERROR:', JSON.stringify(error))
       return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message, hint: error.hint, code: error.code })
     }
-    return res.json({ message: 'Nota checada en piso' })
+    return res.json({ message: 'Nota checada en piso', updated })
   } catch (err: any) {
     console.error('[checadaPiso] CATCH:', err?.message, err?.details)
     return res.status(500).json({ error: err?.message ?? 'Error interno' })
