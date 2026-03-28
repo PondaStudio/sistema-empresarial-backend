@@ -528,8 +528,8 @@ export async function checadaSalida(req: AuthRequest, res: Response) {
       .eq('id', req.params.id)
       .single()
 
-    if (!pedido || pedido.estado !== 'checada_en_piso') {
-      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar checada en piso' })
+    if (!pedido || !['checada_en_piso', 'cobrada'].includes(pedido.estado)) {
+      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar checada en piso o cobrada' })
     }
 
     const { error } = await supabase.from('pedidos_venta').update({
