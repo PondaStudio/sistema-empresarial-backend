@@ -517,10 +517,9 @@ export async function checadaPiso(req: AuthRequest, res: Response) {
 // ── PATCH /:id/checada-salida — Checador rápido confirma salida ─
 export async function checadaSalida(req: AuthRequest, res: Response) {
   try {
-    const nivel   = req.user!.rol_nivel
-    const subtipo = req.user!.subtipo ?? null
-    if (nivel !== 9 || subtipo !== 'checador_rapido') {
-      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo checador_rapido (nivel 9) puede confirmar salida' })
+    const nivel = req.user!.rol_nivel
+    if (nivel !== 9) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo nivel 9 puede confirmar salida' })
     }
 
     const { data: pedido } = await supabase
