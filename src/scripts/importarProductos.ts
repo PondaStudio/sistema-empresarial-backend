@@ -1,3 +1,7 @@
+import * as dotenv from 'dotenv'
+import * as path from 'path'
+dotenv.config({ path: path.resolve(__dirname, '../../.env') })
+
 import * as XLSX from 'xlsx'
 import { supabase } from '../lib/supabase'
 
