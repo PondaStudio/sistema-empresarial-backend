@@ -1,5 +1,4 @@
 import express from 'express'
-import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import { config } from 'dotenv'
@@ -8,16 +7,18 @@ config()
 
 const app = express()
 
+// CORS MUST BE FIRST
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://darkgray-chough-136153.hostingersite.com')
+  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,PATCH,DELETE,OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type,Authorization,X-Mock-User,X-Mock-Level')
+  res.header('Access-Control-Allow-Credentials', 'true')
+  if (req.method === 'OPTIONS') return res.sendStatus(200)
+  next()
+})
+
 // Security
 app.use(helmet())
-app.use(cors({
-  origin: [
-    'https://darkgray-chough-136153.hostingersite.com',
-    'http://localhost:5173',
-    'http://localhost:3000',
-  ],
-  credentials: true,
-}))
 app.use(rateLimit({
   windowMs: 60 * 1000,
   max: 100,

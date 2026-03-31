@@ -486,6 +486,8 @@ export async function checadaPiso(req: AuthRequest, res: Response) {
       .eq('id', req.params.id)
       .single()
 
+    console.log('[checadaPiso] req.user:', JSON.stringify(req.user))
+    console.log('[checadaPiso] params.id:', req.params.id)
     console.log('[checadaPiso] nota actual:', pedido?.estado, '| user nivel:', req.user!.rol_nivel, '| subtipo:', req.user!.subtipo)
 
     if (!pedido || pedido.estado !== 'cobrada') {
@@ -507,6 +509,9 @@ export async function checadaPiso(req: AuthRequest, res: Response) {
       console.error('[checadaPiso] UPDATE ERROR:', JSON.stringify(error))
       return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message, hint: error.hint, code: error.code })
     }
+    if (!updated || updated.length === 0) {
+      return res.status(500).json({ error: 'UPDATE_FAILED', detail: 'No se actualizó ninguna fila - verificar ID y estado' })
+    }
     return res.json({ message: 'Nota checada en piso', updated })
   } catch (err: any) {
     console.error('[checadaPiso] CATCH:', err?.message, err?.details)
@@ -522,24 +527,34 @@ export async function checadaSalida(req: AuthRequest, res: Response) {
       return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo nivel 9 puede confirmar salida' })
     }
 
+    console.log('[checadaSalida] req.user:', JSON.stringify(req.user))
+    console.log('[checadaSalida] params.id:', req.params.id)
+
     const { data: pedido } = await supabase
       .from('pedidos_venta')
       .select('estado')
       .eq('id', req.params.id)
       .single()
 
+    console.log('[checadaSalida] nota actual:', pedido?.estado)
+
     if (!pedido || !['checada_en_piso', 'cobrada'].includes(pedido.estado)) {
       return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar checada en piso o cobrada' })
     }
 
-    const { error } = await supabase.from('pedidos_venta').update({
+    const { data: updated, error } = await supabase.from('pedidos_venta').update({
       estado:            'checada_en_salida',
       checada_salida_id: req.user!.id,
       checada_salida_at: new Date().toISOString(),
-    }).eq('id', req.params.id)
+    }).eq('id', req.params.id).select('id, estado')
+
+    console.log('[checadaSalida] update result:', JSON.stringify(updated), '| error:', JSON.stringify(error))
 
     if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
-    return res.json({ message: 'Nota checada en salida' })
+    if (!updated || updated.length === 0) {
+      return res.status(500).json({ error: 'UPDATE_FAILED', detail: 'No se actualizó ninguna fila - verificar ID y estado' })
+    }
+    return res.json({ message: 'Nota checada en salida', updated })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
