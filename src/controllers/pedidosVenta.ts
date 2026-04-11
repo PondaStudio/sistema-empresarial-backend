@@ -32,7 +32,7 @@ const crearPedidoSchema = z.object({
   notas:              z.string().optional(),
   tipo_cliente:       z.string().optional(),
   facturacion:        z.boolean().optional(),
-  descuento_especial: z.boolean().optional(),
+  descuento_especial: z.string().nullable().optional(),
   area:               z.string().optional(),
   items: z.array(z.object({
     producto_id: z.string().uuid().optional().nullable(),
@@ -236,7 +236,7 @@ const editarPedidoSchema = z.object({
   notas:              z.string().optional(),
   tipo_cliente:       z.string().optional(),
   facturacion:        z.boolean().optional(),
-  descuento_especial: z.boolean().optional(),
+  descuento_especial: z.string().nullable().optional(),
   area:               z.string().optional(),
 })
 
