@@ -45,6 +45,7 @@ const crearPedidoSchema = z.object({
 
 export async function crearPedido(req: AuthRequest, res: Response) {
   try {
+    console.log('[crearPedido] items recibidos:', req.body?.items?.length)
     console.log('[crearPedido] body recibido:', JSON.stringify(req.body))
     console.log('[crearPedido] user:', JSON.stringify(req.user))
 

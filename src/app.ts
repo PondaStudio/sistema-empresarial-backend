@@ -28,7 +28,7 @@ app.use(rateLimit({
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }))
-app.use(express.urlencoded({ extended: true }))
+app.use(express.urlencoded({ limit: '10mb', extended: true }))
 
 // Health check
 app.get('/health', (_req, res) => {
