@@ -2,7 +2,7 @@ import { Router } from 'express'
 import {
   listPedidos, crearPedido, getPedido, getPedidoByFolio,
   editarPedido, deletePedido, reemplazarItems,
-  surtirItem, validarPiso, cobrarNota, checadaPiso, checadaSalida, cerrarNota,
+  surtirItem, confirmarSurtidoParcial, validarPiso, cobrarNota, checadaPiso, checadaSalida, cerrarNota,
 } from '../controllers/pedidosVenta'
 import { requireAuth } from '../middleware/auth'
 import { checkPermission } from '../middleware/permissions'
@@ -31,8 +31,8 @@ router.get('/test-insert', requireAuth, async (req: AuthRequest, res: Response) 
   return res.json({ ok: !error, data, error, user: req.user })
 })
 
-// Flujo: capturada → en_surtido → surtido_parcial → completa_en_piso
-//        → lista_para_cobro → cobrada → en_revision_salida → cerrada
+// Flujo: capturada → en_surtido → completa_en_piso → lista_para_cobro → cobrada → checada_en_piso → checada_en_salida → cerrada
+//                              → devuelta_vendedora → en_surtido (re-surtir) | lista_para_cobro (aceptar parcial)
 
 // /folio/:folio debe ir antes de /:id para evitar colisión de params
 router.get('/folio/:folio',
@@ -89,7 +89,15 @@ router.patch('/:id/surtir-item/:itemId',
   surtirItem
 )
 
-// Vendedora valida en piso → lista_para_cobro + regenera qr_code
+// Vendedora confirma surtido parcial: re_surtir → en_surtido | aceptar → lista_para_cobro
+router.patch('/:id/confirmar-surtido-parcial',
+  requireAuth,
+  checkPermission('pedidos_venta', 'EDITAR'),
+  auditLog('pedidos_venta', 'EDITAR'),
+  confirmarSurtidoParcial
+)
+
+// Vendedora valida en piso (completa_en_piso) → lista_para_cobro + regenera qr_code
 router.patch('/:id/validar-piso',
   requireAuth,
   checkPermission('pedidos_venta', 'EDITAR'),

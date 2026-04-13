@@ -3,8 +3,8 @@ import { supabase } from '../lib/supabase'
 import { z } from 'zod'
 import { AuthRequest } from '../middleware/auth'
 
-// Flujo: capturada → en_surtido → surtido_parcial → completa_en_piso
-//        → lista_para_cobro → cobrada → en_revision_salida → cerrada
+// Flujo: capturada → en_surtido → completa_en_piso → lista_para_cobro → cobrada → checada_en_piso → checada_en_salida → cerrada
+//                              → devuelta_vendedora → en_surtido (re-surtir) | lista_para_cobro (aceptar parcial)
 
 // ── Helpers ───────────────────────────────────────────────
 async function generarFolio(): Promise<string> {
@@ -152,7 +152,7 @@ export async function listPedidos(req: AuthRequest, res: Response) {
       if (sucursalId) query = query.eq('sucursal_id', sucursalId)
     } else if (nivel === 9) {
       // Almacenista G1/G2: notas pendientes de surtir
-      if (!estado && !estados) query = query.in('estado', ['capturada', 'en_surtido', 'surtido_parcial'])
+      if (!estado && !estados) query = query.in('estado', ['capturada', 'en_surtido'])
       if (sucursalId) query = query.eq('sucursal_id', sucursalId)
     } else if (nivel === 8) {
       // Cajera: notas listas para cobrar
@@ -336,12 +336,16 @@ export async function reemplazarItems(req: AuthRequest, res: Response) {
 }
 
 // ── PATCH /:id/surtir-item/:itemId — Almacenista surte ───
+// Body: { cantidad_surtida, area?, incidencia?, observaciones? }
+// estado_confirmacion se calcula automáticamente:
+//   cantidad_surtida === cantidad_pedida → 'surtido'
+//   0 < cantidad_surtida < cantidad_pedida → 'surtido_parcial'
+//   cantidad_surtida === 0 → 'no_surtido'
 const surtirItemSchema = z.object({
-  cantidad_surtida:    z.number().int().min(0).optional(),
-  estado_confirmacion: z.enum(['pendiente', 'surtido', 'surtido_parcial', 'no_disponible', 'sustituto']).optional(),
-  area:                z.string().optional(),
-  incidencia:          z.string().optional(),
-  observaciones:       z.string().optional(),
+  cantidad_surtida: z.number().int().min(0),
+  area:             z.string().optional(),
+  incidencia:       z.string().optional(),
+  observaciones:    z.string().optional(),
 })
 
 export async function surtirItem(req: AuthRequest, res: Response) {
@@ -354,22 +358,44 @@ export async function surtirItem(req: AuthRequest, res: Response) {
       .eq('id', pedidoId)
       .single()
 
-    if (!pedido || !['capturada', 'en_surtido', 'surtido_parcial'].includes(pedido.estado)) {
+    if (!pedido || !['capturada', 'en_surtido'].includes(pedido.estado)) {
       return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota no está disponible para surtir' })
     }
 
     const parsed = surtirItemSchema.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
+    // Obtener la cantidad pedida para calcular el estado automáticamente
+    const { data: itemActual } = await supabase
+      .from('items_pedido_venta')
+      .select('cantidad')
+      .eq('id', itemId)
+      .eq('pedido_id', pedidoId)
+      .single()
+
+    if (!itemActual) return res.status(404).json({ error: 'ITEM_NOT_FOUND' })
+
+    const { cantidad_surtida, area, incidencia, observaciones } = parsed.data
+    const cantidad_pedida = itemActual.cantidad
+
+    let estado_confirmacion: string
+    if (cantidad_surtida === cantidad_pedida) {
+      estado_confirmacion = 'surtido'
+    } else if (cantidad_surtida > 0 && cantidad_surtida < cantidad_pedida) {
+      estado_confirmacion = 'surtido_parcial'
+    } else {
+      estado_confirmacion = 'no_surtido'
+    }
+
     const updatePayload: Record<string, any> = {
+      cantidad_surtida,
+      estado_confirmacion,
       almacenista_id: req.user!.id,
       confirmado_at:  new Date().toISOString(),
     }
-    if (parsed.data.cantidad_surtida    !== undefined) updatePayload.cantidad_surtida    = parsed.data.cantidad_surtida
-    if (parsed.data.estado_confirmacion !== undefined) updatePayload.estado_confirmacion = parsed.data.estado_confirmacion
-    if (parsed.data.area                !== undefined) updatePayload.area                = parsed.data.area
-    if (parsed.data.incidencia          !== undefined) updatePayload.incidencia          = parsed.data.incidencia
-    if (parsed.data.observaciones       !== undefined) updatePayload.observaciones       = parsed.data.observaciones
+    if (area          !== undefined) updatePayload.area          = area
+    if (incidencia    !== undefined) updatePayload.incidencia    = incidencia
+    if (observaciones !== undefined) updatePayload.observaciones = observaciones
 
     const { data: updatedItem, error: updateError } = await supabase
       .from('items_pedido_venta')
@@ -381,10 +407,10 @@ export async function surtirItem(req: AuthRequest, res: Response) {
 
     if (updateError) return res.status(500).json({ error: 'UPDATE_FAILED', detail: updateError.message, hint: updateError.hint })
 
-    // Recalcular estado de la nota según todos sus items
+    // Recalcular estado del pedido según todos sus items
     const { data: allItems } = await supabase
       .from('items_pedido_venta')
-      .select('estado_confirmacion, cantidad, cantidad_surtida')
+      .select('estado_confirmacion')
       .eq('pedido_id', pedidoId)
 
     const items = allItems ?? []
@@ -394,17 +420,77 @@ export async function surtirItem(req: AuthRequest, res: Response) {
     if (!allResolved) {
       nuevoEstado = 'en_surtido'
     } else {
-      const hayParciales = items.some(i =>
-        i.estado_confirmacion === 'no_disponible' ||
+      const hayIncompletos = items.some(i =>
         i.estado_confirmacion === 'surtido_parcial' ||
-        (i.cantidad_surtida !== null && i.cantidad_surtida < i.cantidad)
+        i.estado_confirmacion === 'no_surtido'
       )
-      nuevoEstado = hayParciales ? 'surtido_parcial' : 'completa_en_piso'
+      nuevoEstado = hayIncompletos ? 'devuelta_vendedora' : 'completa_en_piso'
     }
 
     await supabase.from('pedidos_venta').update({ estado: nuevoEstado }).eq('id', pedidoId)
 
     return res.json({ message: 'Item actualizado', item: updatedItem, estado_nota: nuevoEstado, allResolved })
+  } catch (err) {
+    console.error(err)
+    return res.status(500).json({ error: 'Error interno' })
+  }
+}
+
+// ── PATCH /:id/confirmar-surtido-parcial — Vendedora decide qué hacer ─
+// accion: 're_surtir' → regresa a en_surtido (almacenista vuelve a surtir)
+// accion: 'aceptar'   → pasa a lista_para_cobro (acepta el surtido parcial)
+const confirmarSurtidoParcialSchema = z.object({
+  accion: z.enum(['re_surtir', 'aceptar']),
+})
+
+export async function confirmarSurtidoParcial(req: AuthRequest, res: Response) {
+  try {
+    const nivel = req.user!.rol_nivel
+    if (nivel < 10) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo vendedora puede confirmar surtido parcial' })
+    }
+
+    const { data: pedido } = await supabase
+      .from('pedidos_venta')
+      .select('estado, vendedora_id, folio')
+      .eq('id', req.params.id)
+      .single()
+
+    if (!pedido) return res.status(404).json({ error: 'NOT_FOUND' })
+
+    if (pedido.estado !== 'devuelta_vendedora') {
+      return res.status(400).json({ error: 'INVALID_STATE', message: `La nota debe estar en 'devuelta_vendedora', actualmente en '${pedido.estado}'` })
+    }
+
+    if (pedido.vendedora_id !== req.user!.id) {
+      return res.status(403).json({ error: 'FORBIDDEN', message: 'Solo la vendedora dueña puede confirmar' })
+    }
+
+    const parsed = confirmarSurtidoParcialSchema.safeParse(req.body)
+    if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
+
+    const updateData: Record<string, any> = {}
+    let nuevoEstado: string
+
+    if (parsed.data.accion === 're_surtir') {
+      nuevoEstado = 'en_surtido'
+      // Resetear items incompletos a pendiente para que el almacenista los vuelva a surtir
+      await supabase
+        .from('items_pedido_venta')
+        .update({ estado_confirmacion: 'pendiente', cantidad_surtida: 0 })
+        .eq('pedido_id', req.params.id)
+        .in('estado_confirmacion', ['surtido_parcial', 'no_surtido'])
+    } else {
+      nuevoEstado = 'lista_para_cobro'
+      updateData.validada_vendedora_at = new Date().toISOString()
+      updateData.qr_code = qrUrl(pedido.folio)
+    }
+
+    updateData.estado = nuevoEstado
+    const { error } = await supabase.from('pedidos_venta').update(updateData).eq('id', req.params.id)
+
+    if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
+    return res.json({ message: `Nota cambiada a '${nuevoEstado}'`, estado: nuevoEstado })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
@@ -422,8 +508,8 @@ export async function validarPiso(req: AuthRequest, res: Response) {
 
     if (!pedido) return res.status(404).json({ error: 'NOT_FOUND' })
 
-    if (!['completa_en_piso', 'surtido_parcial'].includes(pedido.estado)) {
-      return res.status(400).json({ error: 'INVALID_STATE', message: 'La nota debe estar en piso (completa o parcial) para validar' })
+    if (pedido.estado !== 'completa_en_piso') {
+      return res.status(400).json({ error: 'INVALID_STATE', message: `La nota debe estar en 'completa_en_piso' para validar, actualmente en '${pedido.estado}'` })
     }
 
     if (req.user!.rol_nivel >= 10 && pedido.vendedora_id !== req.user!.id) {
