@@ -152,7 +152,7 @@ export async function listPedidos(req: AuthRequest, res: Response) {
       if (sucursalId) query = query.eq('sucursal_id', sucursalId)
     } else if (nivel === 9) {
       // Almacenista G1/G2: notas pendientes de surtir
-      if (!estado && !estados) query = query.in('estado', ['capturada', 'en_surtido'])
+      if (!estado && !estados) query = query.in('estado', ['capturada', 'en_surtido', 'devuelta_vendedora'])
       if (sucursalId) query = query.eq('sucursal_id', sucursalId)
     } else if (nivel === 8) {
       // Cajera: notas listas para cobrar
