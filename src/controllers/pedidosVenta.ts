@@ -473,25 +473,34 @@ export async function confirmarSurtidoParcial(req: AuthRequest, res: Response) {
     if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
     const itemsEnBody = parsed.data.items
-    const idsEnBody   = itemsEnBody.map(i => i.id)
 
-    // Eliminar items que la vendedora quitó
-    const { data: itemsActuales } = await supabase
-      .from('items_pedido_venta')
-      .select('id')
-      .eq('pedido_id', req.params.id)
+    if (itemsEnBody.length > 0) {
+      // Eliminar items que la vendedora quitó del body
+      const idsEnBody = itemsEnBody.map(i => i.id)
+      const { data: itemsActuales } = await supabase
+        .from('items_pedido_venta')
+        .select('id')
+        .eq('pedido_id', req.params.id)
 
-    const idsEliminar = (itemsActuales ?? []).map(i => i.id).filter(id => !idsEnBody.includes(id))
-    if (idsEliminar.length > 0) {
-      await supabase.from('items_pedido_venta').delete().in('id', idsEliminar)
-    }
+      const idsEliminar = (itemsActuales ?? []).map(i => i.id).filter(id => !idsEnBody.includes(id))
+      if (idsEliminar.length > 0) {
+        await supabase.from('items_pedido_venta').delete().in('id', idsEliminar)
+      }
 
-    // Resetear surtido_parcial y no_surtido a pendiente con las cantidades que envió la vendedora
-    for (const item of itemsEnBody) {
+      // Actualizar cantidades de los items que la vendedora modificó
+      for (const item of itemsEnBody) {
+        await supabase
+          .from('items_pedido_venta')
+          .update({ cantidad: item.cantidad, cantidad_surtida: 0, estado_confirmacion: 'pendiente' })
+          .eq('id', item.id)
+          .in('estado_confirmacion', ['surtido_parcial', 'no_surtido'])
+      }
+    } else {
+      // Sin cambios de la vendedora: solo resetear estados sin borrar nada
       await supabase
         .from('items_pedido_venta')
-        .update({ cantidad: item.cantidad, cantidad_surtida: 0, estado_confirmacion: 'pendiente' })
-        .eq('id', item.id)
+        .update({ cantidad_surtida: 0, estado_confirmacion: 'pendiente' })
+        .eq('pedido_id', req.params.id)
         .in('estado_confirmacion', ['surtido_parcial', 'no_surtido'])
     }
 
