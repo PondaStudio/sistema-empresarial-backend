@@ -437,8 +437,10 @@ export async function surtirItem(req: AuthRequest, res: Response) {
 }
 
 // ── PATCH /:id/confirmar-surtido-parcial — Vendedora decide qué hacer ─
-// accion: 're_surtir' → regresa a en_surtido (almacenista vuelve a surtir)
-// accion: 'aceptar'   → pasa a lista_para_cobro (acepta el surtido parcial)
+// accion: 're_surtir' → items incompletos resetean a pendiente (almacenista re-surte) → en_surtido
+// accion: 'aceptar'   → items no_surtido se eliminan, surtido_parcial actualizan cantidad
+//                       a la cantidad_surtida aceptada → pendiente → en_surtido para confirmación final
+// En ambos casos el almacenista confirma; cuando TODOS son 'surtido' → completa_en_piso → vendedora valida → lista_para_cobro
 const confirmarSurtidoParcialSchema = z.object({
   accion: z.enum(['re_surtir', 'aceptar']),
 })
@@ -469,28 +471,48 @@ export async function confirmarSurtidoParcial(req: AuthRequest, res: Response) {
     const parsed = confirmarSurtidoParcialSchema.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
-    const updateData: Record<string, any> = {}
-    let nuevoEstado: string
-
     if (parsed.data.accion === 're_surtir') {
-      nuevoEstado = 'en_surtido'
-      // Resetear items incompletos a pendiente para que el almacenista los vuelva a surtir
+      // Resetear items incompletos a pendiente para que el almacenista los intente de nuevo
       await supabase
         .from('items_pedido_venta')
         .update({ estado_confirmacion: 'pendiente', cantidad_surtida: 0 })
         .eq('pedido_id', req.params.id)
         .in('estado_confirmacion', ['surtido_parcial', 'no_surtido'])
     } else {
-      nuevoEstado = 'lista_para_cobro'
-      updateData.validada_vendedora_at = new Date().toISOString()
-      updateData.qr_code = qrUrl(pedido.folio)
+      // Eliminar items no_surtido (vendedora los descarta)
+      await supabase
+        .from('items_pedido_venta')
+        .delete()
+        .eq('pedido_id', req.params.id)
+        .eq('estado_confirmacion', 'no_surtido')
+
+      // Para items surtido_parcial: aceptar la cantidad surtida como nueva cantidad pedida
+      // y resetear a pendiente para que el almacenista confirme el surtido final
+      const { data: parciales } = await supabase
+        .from('items_pedido_venta')
+        .select('id, cantidad_surtida')
+        .eq('pedido_id', req.params.id)
+        .eq('estado_confirmacion', 'surtido_parcial')
+
+      for (const item of parciales ?? []) {
+        await supabase
+          .from('items_pedido_venta')
+          .update({
+            cantidad:            item.cantidad_surtida,
+            cantidad_surtida:    0,
+            estado_confirmacion: 'pendiente',
+          })
+          .eq('id', item.id)
+      }
     }
 
-    updateData.estado = nuevoEstado
-    const { error } = await supabase.from('pedidos_venta').update(updateData).eq('id', req.params.id)
+    const { error } = await supabase
+      .from('pedidos_venta')
+      .update({ estado: 'en_surtido' })
+      .eq('id', req.params.id)
 
     if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
-    return res.json({ message: `Nota cambiada a '${nuevoEstado}'`, estado: nuevoEstado })
+    return res.json({ message: "Nota regresada a 'en_surtido' para confirmación final del almacenista", estado: 'en_surtido' })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
