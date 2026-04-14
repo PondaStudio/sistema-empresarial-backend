@@ -436,13 +436,14 @@ export async function surtirItem(req: AuthRequest, res: Response) {
   }
 }
 
-// ── PATCH /:id/confirmar-surtido-parcial — Vendedora decide qué hacer ─
-// accion: 're_surtir' → items incompletos resetean a pendiente (almacenista re-surte) → en_surtido
-// accion: 'aceptar'   → items no_surtido se eliminan, surtido_parcial actualizan cantidad
-//                       a la cantidad_surtida aceptada → pendiente → en_surtido para confirmación final
-// En ambos casos el almacenista confirma; cuando TODOS son 'surtido' → completa_en_piso → vendedora valida → lista_para_cobro
+// ── PATCH /:id/confirmar-surtido-parcial — Vendedora revisa y regresa a en_surtido ─
+// Resetea items surtido_parcial/no_surtido a pendiente con cantidades actualizadas por la vendedora.
+// Elimina items que la vendedora quitó del body. Cambia estado a en_surtido.
 const confirmarSurtidoParcialSchema = z.object({
-  accion: z.enum(['re_surtir', 'aceptar']),
+  items: z.array(z.object({
+    id:       z.string().uuid(),
+    cantidad: z.number().int().positive(),
+  })),
 })
 
 export async function confirmarSurtidoParcial(req: AuthRequest, res: Response) {
@@ -454,7 +455,7 @@ export async function confirmarSurtidoParcial(req: AuthRequest, res: Response) {
 
     const { data: pedido } = await supabase
       .from('pedidos_venta')
-      .select('estado, vendedora_id, folio')
+      .select('estado, vendedora_id')
       .eq('id', req.params.id)
       .single()
 
@@ -471,39 +472,27 @@ export async function confirmarSurtidoParcial(req: AuthRequest, res: Response) {
     const parsed = confirmarSurtidoParcialSchema.safeParse(req.body)
     if (!parsed.success) return res.status(400).json({ error: 'VALIDATION_ERROR', issues: parsed.error.issues })
 
-    if (parsed.data.accion === 're_surtir') {
-      // Resetear items incompletos a pendiente para que el almacenista los intente de nuevo
+    const itemsEnBody = parsed.data.items
+    const idsEnBody   = itemsEnBody.map(i => i.id)
+
+    // Eliminar items que la vendedora quitó
+    const { data: itemsActuales } = await supabase
+      .from('items_pedido_venta')
+      .select('id')
+      .eq('pedido_id', req.params.id)
+
+    const idsEliminar = (itemsActuales ?? []).map(i => i.id).filter(id => !idsEnBody.includes(id))
+    if (idsEliminar.length > 0) {
+      await supabase.from('items_pedido_venta').delete().in('id', idsEliminar)
+    }
+
+    // Resetear surtido_parcial y no_surtido a pendiente con las cantidades que envió la vendedora
+    for (const item of itemsEnBody) {
       await supabase
         .from('items_pedido_venta')
-        .update({ estado_confirmacion: 'pendiente', cantidad_surtida: 0 })
-        .eq('pedido_id', req.params.id)
+        .update({ cantidad: item.cantidad, cantidad_surtida: 0, estado_confirmacion: 'pendiente' })
+        .eq('id', item.id)
         .in('estado_confirmacion', ['surtido_parcial', 'no_surtido'])
-    } else {
-      // Eliminar items no_surtido (vendedora los descarta)
-      await supabase
-        .from('items_pedido_venta')
-        .delete()
-        .eq('pedido_id', req.params.id)
-        .eq('estado_confirmacion', 'no_surtido')
-
-      // Para items surtido_parcial: aceptar la cantidad surtida como nueva cantidad pedida
-      // y resetear a pendiente para que el almacenista confirme el surtido final
-      const { data: parciales } = await supabase
-        .from('items_pedido_venta')
-        .select('id, cantidad_surtida')
-        .eq('pedido_id', req.params.id)
-        .eq('estado_confirmacion', 'surtido_parcial')
-
-      for (const item of parciales ?? []) {
-        await supabase
-          .from('items_pedido_venta')
-          .update({
-            cantidad:            item.cantidad_surtida,
-            cantidad_surtida:    0,
-            estado_confirmacion: 'pendiente',
-          })
-          .eq('id', item.id)
-      }
     }
 
     const { error } = await supabase
@@ -512,7 +501,7 @@ export async function confirmarSurtidoParcial(req: AuthRequest, res: Response) {
       .eq('id', req.params.id)
 
     if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
-    return res.json({ message: "Nota regresada a 'en_surtido' para confirmación final del almacenista", estado: 'en_surtido' })
+    return res.json({ message: "Nota regresada a 'en_surtido'", estado: 'en_surtido' })
   } catch (err) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
