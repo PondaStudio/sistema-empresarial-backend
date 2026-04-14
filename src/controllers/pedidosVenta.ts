@@ -495,12 +495,18 @@ export async function confirmarSurtidoParcial(req: AuthRequest, res: Response) {
         .in('estado_confirmacion', ['surtido_parcial', 'no_surtido'])
     }
 
-    const { error } = await supabase
+    const { error, data: updated } = await supabase
       .from('pedidos_venta')
       .update({ estado: 'en_surtido' })
       .eq('id', req.params.id)
+      .select('id, estado')
+      .single()
 
-    if (error) return res.status(500).json({ error: 'UPDATE_FAILED', detail: error.message })
+    console.log('[confirmarSurtidoParcial] updated:', JSON.stringify(updated), 'error:', error?.message)
+
+    if (error || !updated) {
+      return res.status(500).json({ error: 'UPDATE_FAILED', detail: error?.message })
+    }
     return res.json({ message: "Nota regresada a 'en_surtido'", estado: 'en_surtido' })
   } catch (err) {
     console.error(err)
