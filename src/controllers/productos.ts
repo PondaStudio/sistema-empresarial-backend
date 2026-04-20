@@ -1,7 +1,27 @@
-import { Response } from 'express'
+import { Response, Request } from 'express'
 import { supabase } from '../lib/supabase'
 import { z } from 'zod'
 import { AuthRequest } from '../middleware/auth'
+
+const HELPER_URL = 'http://127.0.0.1:8765/extra-tab-codes'
+
+let extraTabCodesCache: string[] | null = null
+
+async function fetchExtraTabCodes(): Promise<string[]> {
+  if (extraTabCodesCache !== null) return extraTabCodesCache
+
+  try {
+    const res = await fetch(HELPER_URL, { signal: AbortSignal.timeout(5000) })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const json = await res.json() as { codes: string[] }
+    extraTabCodesCache = Array.isArray(json.codes) ? json.codes : []
+  } catch (err) {
+    console.warn('[extra-tab-codes] helper no disponible:', (err as Error).message)
+    extraTabCodesCache = []
+  }
+
+  return extraTabCodesCache
+}
 
 export async function listProductos(req: AuthRequest, res: Response) {
   try {
@@ -66,4 +86,9 @@ export async function updateProducto(req: AuthRequest, res: Response) {
     console.error(err)
     return res.status(500).json({ error: 'Error interno' })
   }
+}
+
+export async function getExtraTabCodes(_req: Request, res: Response) {
+  const codes = await fetchExtraTabCodes()
+  return res.json({ codes })
 }
